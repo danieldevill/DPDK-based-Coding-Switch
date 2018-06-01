@@ -1,0 +1,24 @@
+#!/bin/sh
+
+hosts=4
+count=1
+while [ $count -le $hosts ]
+do
+	#Create TAP devices
+	tunctl -u daniel -t sw_tap${count}
+	tunctl -u daniel -t deb${count}_tap
+
+	#Bring up tap devices
+	ip link set sw_tap${count} up
+	ip link set deb${count}_tap up
+
+	#Create bridges
+	brctl addbr swbr${count}
+	brctl addif swbr${count} sw_tap${count}
+	brctl addif swbr${count} deb${count}_tap
+
+	#Bring up bridge
+	ip link set swbr${count} up
+
+	((count++))	
+done

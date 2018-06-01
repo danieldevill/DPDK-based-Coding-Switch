@@ -1,0 +1,16 @@
+#!/bin/sh
+
+hosts=4
+count=1
+while [ $count -le $hosts ]
+do
+	#Bring down bridges and delete
+	ifconfig swbr${count} down
+	brctl delbr swbr${count}
+
+	#Delete TAP devices
+	tunctl -d sw_tap${count}
+	tunctl -d deb${count}_tap
+
+	((count++))	
+done

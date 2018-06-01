@@ -1,0 +1,42 @@
+#!/bin/bash
+
+#DPDK-based coding switch workflow setup script.
+
+#VM network config up.
+sudo ./ifup 
+
+echo "Interfaces up!"
+
+#Run mininet in QEMU vm with rocker
+#start qemu debian vm image
+sudo qemu-system-x86_64 vm-images/mininet.qcow2 \
+-accel kvm -display none \
+-m size=6G \
+-cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
+-smp 8 -numa node,nodeid=0  \
+-device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22 \
+-device e1000,vlan=1,mac=de:ad:be:ef:00:02 \
+-net tap,name=net2,vlan=1,ifname=sw_tap1,script=no,downscript=no \
+-device e1000,vlan=2,mac=de:ad:be:ef:00:03 \
+-net tap,name=net3,vlan=2,ifname=sw_tap2,script=no,downscript=no \
+-device e1000,vlan=3,mac=de:ad:be:ef:00:04 \
+-net tap,name=net4,vlan=3,ifname=sw_tap3,script=no,downscript=no \
+-device e1000,vlan=4,mac=de:ad:be:ef:00:05 \
+-net tap,name=net5,vlan=4,ifname=sw_tap4,script=no,downscript=no &
+
+sleep 5
+
+#Start ssh terminals for the sw vm.`
+terminator -g swcli_config &
+
+sleep 5
+
+#Start qemu hosts A,B,C and D: Setup is done in a terminator config file
+sudo terminator -g hostscli_config
+
+#Backup mininet working to Dropbox folder`
+sudo scp -P 10022 -r mininet@localhost:/usr/src/dpdk-stable-17.11.1/examples/l2fwd-nc/* ~/Dropbox/Academics/MEng/Working/DPDK-based-Coding-Switch/l2fwd-nc/
+sudo scp -P 10022 -r mininet@localhost:/home/mininet/setup_ovsdpdk ~/Dropbox/Academics/MEng/Working/DPDK-based-Coding-Switch/
+
+#Network config down
+sudo ./ifdown
