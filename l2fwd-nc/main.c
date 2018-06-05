@@ -33,8 +33,12 @@
 
 //Modified by Daniel de Villiers, 2018.
 //Additions marked by DD. Also GIT will dictate!
-// Also my comments are "//" vs /* */ of dpdk.
+// Also my comments are "//" vs /* */ of dpdk (Linux).
 //DD. I've "butchered" all  statistics code, just to clean.  
+
+//Includes for Kodo-c library
+#include <time.h>
+#include <kodoc/kodoc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +80,7 @@
 //Added by DD.
 #include "main.h"
 
+
 //ARP table
 #define ARP_ENTRIES 100
 static uint64_t arp_table[ARP_ENTRIES][3];
@@ -97,12 +102,23 @@ struct mac_table_entry mac_fwd_table[MAC_ENTRIES];
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
 static uint32_t packet_counter = 0;
+static int network_coding = 0; //Network coding disabled by default.
+
+//Kodo-c init:
+//Define num symbols and size.
+//Values are just selected from examples for now.
+static uint32_t max_symbols = 1;
+static uint32_t max_symbol_size = 10;
+//Select codec
+static uint32_t codec = kodoc_full_vector;
+//Finite field to use
+static uint32_t finite_field = kodoc_binary;
 
 static volatile bool force_quit;
 
 /* MAC updating enabled by default */
 // MAC updating disabled
-static int mac_updating = 0;
+/*static int mac_updating = 0;*/
 
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
@@ -162,7 +178,7 @@ struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 static uint64_t timer_period = 10; /* default period is 10 seconds */
 
 static void
-l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
+l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
 
@@ -170,6 +186,49 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 
 	//Get recieved packet
 	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+	//NC
+	if(network_coding== 1) 
+	{
+		//Create data buffers
+		uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*encoder));
+		uint32_t block_size = kodoc_block_size(*encoder);
+		uint8_t* data_in = (uint8_t*) malloc(block_size);
+		uint8_t* data_out = (uint8_t*) malloc(block_size);
+
+		//Kodo-c assign data to payload, encode and decode and test.`
+		//Fill payload with data.
+		uint32_t j;
+		for(j=0;j<block_size;j++)
+		{
+			if(j<sizeof(data))
+			{
+				data_in[j] = data[j+14]; //Payload data starts at 14th byte position, after src and dst.
+			}
+			else
+			{
+				data_in[j] = 0; //Pad with zeros after payload
+			}
+		}
+
+		//Assign data buffers to encoder and decoder.
+		kodoc_set_const_symbols(*encoder,data_in,block_size);
+		kodoc_set_mutable_symbols(*decoder,data_out,block_size);
+
+		//Start encoding and decoding process
+		while(!kodoc_is_complete(*decoder))
+		{
+			//Encode payload
+			kodoc_write_payload(*encoder, payload);
+
+			//Pass payload to decoder
+			kodoc_read_payload(*decoder,payload);
+		}
+
+		free(data_in);
+		free(data_out);
+		free(payload);
+	}
 
 	//Get ethernet dst and src
 	struct ether_addr d_addr = { 
@@ -208,9 +267,6 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 		}
         packet_counter = packet_counter+3;
 	}
-	//Display number of packets sent.
-	printf(" packets forwarded. \r%u", packet_counter);
-	fflush(stdout);
 	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
 	{
 		mac_fwd_table[mac_counter].d_addr = s_addr;
@@ -232,6 +288,16 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 			}
 		}
 	}
+	//Display number of packets sent.
+	if(network_coding== 1)
+	{
+		printf("  NC packets forwarded. \r%u", packet_counter);
+	}
+	else
+	{
+		printf(" packets forwarded. \r%u", packet_counter);
+	}
+	fflush(stdout);
 }
 
 //DD.
@@ -392,6 +458,15 @@ l2fwd_main_loop(void)
 
 	}
 
+	//Encoded and decoder factory
+	kodoc_factory_t encoder_factory = kodoc_new_encoder_factory(
+		codec,finite_field,max_symbols,max_symbol_size);
+	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(
+		codec,finite_field,max_symbols,max_symbol_size);
+	//Create encoder and decoder
+	kodoc_coder_t encoder = kodoc_factory_build_coder(encoder_factory);
+	kodoc_coder_t decoder = kodoc_factory_build_coder(decoder_factory);
+
 	while (!force_quit) {
 
 		cur_tsc = rte_rdtsc();
@@ -438,10 +513,17 @@ l2fwd_main_loop(void)
 				//Send recieved packets to tx, for each packet recieved
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-				l2fwd_learning_forward(m, portid);
+				l2fwd_learning_forward(m, portid, &encoder, &decoder);
 			}
 		}
 	}
+
+	//Cleanup after network coding
+	kodoc_delete_coder(encoder);
+	kodoc_delete_coder(decoder);
+
+	kodoc_delete_factory(encoder_factory);
+	kodoc_delete_factory(decoder_factory);
 }
 
 static int
@@ -508,8 +590,8 @@ static const char short_options[] =
 	"T:"  /* timer period */
 	;
 
-#define CMD_LINE_OPT_MAC_UPDATING "mac-updating"
-#define CMD_LINE_OPT_NO_MAC_UPDATING "no-mac-updating"
+#define CMD_LINE_OPT_NETWORK_CODING "network-coding"
+#define CMD_LINE_OPT_NO_NETWORK_CODING "no-network-coding"
 
 enum {
 	/* long options mapped to a short option */
@@ -520,8 +602,8 @@ enum {
 };
 
 static const struct option lgopts[] = {
-	{ CMD_LINE_OPT_MAC_UPDATING, no_argument, &mac_updating, 1},
-	{ CMD_LINE_OPT_NO_MAC_UPDATING, no_argument, &mac_updating, 0},
+	{ CMD_LINE_OPT_NETWORK_CODING, no_argument, &network_coding, 1},
+	{ CMD_LINE_OPT_NO_NETWORK_CODING, no_argument, &network_coding, 0},
 	{NULL, 0, 0, 0}
 };
 
@@ -563,6 +645,11 @@ l2fwd_parse_args(int argc, char **argv)
 
 	if (optind >= 0)
 		argv[optind-1] = prgname;
+
+	if(network_coding== 1)
+	{
+		printf("Network Coding Enabled.\n");
+	}
 
 	ret = optind-1;
 	optind = 1; /* reset getopt lib */
