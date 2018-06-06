@@ -101,8 +101,8 @@ static int network_coding = 0; //Network coding disabled by default.
 //Kodo-c init:
 //Define num symbols and size.
 //Values are just selected from examples for now.
-static uint32_t max_symbols = 1;
-static uint32_t max_symbol_size = 10;
+static uint32_t max_symbols = 10;
+static uint32_t max_symbol_size = 1400; //Size of MTU datatgram.
 //Select codec
 static uint32_t codec = kodoc_full_vector;
 //Finite field to use
@@ -190,7 +190,6 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encod
 		uint8_t* data_in = (uint8_t*) malloc(block_size);
 		uint8_t* data_out = (uint8_t*) malloc(block_size);
 
-		//Kodo-c assign data to payload, encode and decode and test.`
 		//Fill payload with data.
 		uint32_t j;
 		for(j=0;j<block_size;j++)
