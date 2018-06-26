@@ -1,5 +1,4 @@
-dep_main.o = /usr/src/dpdk-stable-17.11.1/examples/l2fwd-nc/main.c \
- /usr/include/stdc-predef.h \
+dep_main.o = /home/mininet/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_config.h \
  /usr/include/time.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -219,4 +218,4 @@ dep_main.o = /usr/src/dpdk-stable-17.11.1/examples/l2fwd-nc/main.c \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_ether.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_eth_ctrl.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_dev_info.h \
- /usr/src/dpdk-stable-17.11.1/examples/l2fwd-nc/main.h
+ /home/mininet/l2fwd-nc/main.h

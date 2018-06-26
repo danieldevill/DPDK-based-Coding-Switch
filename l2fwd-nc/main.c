@@ -80,7 +80,8 @@
 //Added by DD.
 #include "main.h"
 
-//<VLAN,MAC,Type,port> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
+//<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
+//Ive added a new idea where the mac table has a coding capable field.
 #define MAC_ENTRIES 20
 #define STATIC 0
 #define DYNAMIC 1
@@ -177,18 +178,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	//Get recieved packet
 	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-
-	//Get ether type
-	uint16_t ether_type = (data[13] | (data[12] << 8));
-
-	//Check if Network Coded Packet
-	if(ether_type == 0x2020)
-	{
-
-	}
-
 	//Get ethernet dst and src
 	struct ether_addr d_addr = { 
 		{data[0],data[1],data[2],data[3],data[4],data[5]}
@@ -196,6 +186,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 	struct ether_addr s_addr = {
 		{data[6],data[7],data[8],data[9],data[10],data[11]}
 	};
+
 	//Check if MAC forwarding table has port entry for dst.
 	unsigned mac_add = 0; //Add src mac to table.
 	unsigned mac_dst_found = 0; //DST MAC not found by default.
@@ -226,11 +217,12 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 		}
         packet_counter = packet_counter+3;
 	}
-	if(unlikely(mac_add == 0)) //Add MAC addr1ess to MAC table.
+	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
 	{
 		mac_fwd_table[mac_counter].d_addr = s_addr;
 		mac_fwd_table[mac_counter].type = DYNAMIC;
 		mac_fwd_table[mac_counter].port = portid;
+		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
 		mac_counter++; //Increment MAC counter.
 
 		printf("\nUpdated MAC TABLE.\n");
@@ -283,6 +275,8 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 		}
 	}
 
+	//Loop through each port queue to code.
+
 	//If encoder rank is less than number of symbols, then encode data.
 	uint32_t rank = kodoc_rank(*encoder);
 	if(rank < kodoc_symbols(*encoder))
@@ -299,7 +293,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 	       rank, bytes_used);
 
 	//Create mbuf for encoded reply
-/*	struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+	/*struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,50);
 	struct ether_hdr eth_hdr = {	
 		d_addr, //Same as incoming source addr.
@@ -316,7 +310,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 	rte_pktmbuf_dump(mbuf_file,encoded_mbuf,1000);
 	fclose(mbuf_file);*/
 
-	net_decode(payload, portid, encoder, decoder);
+	//net_decode(m, portid, encoder, decoder);
 
 	free(data_in);
 	free(payload);
@@ -325,21 +319,14 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 }
 
 static void
-net_decode(uint8_t* payload, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
+net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
 	//Get recieved packet
-/*	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.*/
-	//Get ethernet dst and src
-/*	struct ether_addr d_addr = { 
-		{data[0],data[1],data[2],data[3],data[4],data[5]}
-	};
-	struct ether_addr s_addr = {
-		{data[6],data[7],data[8],data[9],data[10],data[11]}
-	};*/
+	//const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
 	//Create Data buffers
 	uint32_t block_size = kodoc_block_size(*encoder);
-	//uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*encoder));
+	uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*encoder));
 	uint8_t* data_out = (uint8_t*) malloc(block_size);
 
 	kodoc_set_mutable_symbols(*decoder,data_out,block_size);
@@ -375,7 +362,7 @@ net_decode(uint8_t* payload, unsigned portid, kodoc_coder_t *encoder, kodoc_code
 	}
 
 	//Create mbuf for decoded reply
-/*	struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+  /*struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,50);
 	struct ether_hdr eth_hdr = {	
 		d_addr, //Same as incoming source addr.
@@ -386,21 +373,21 @@ net_decode(uint8_t* payload, unsigned portid, kodoc_coder_t *encoder, kodoc_code
 	encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,payload,sizeof(payload));*/
 
 	//Dump packets into a file
-/*	FILE *mbuf_file;
+  /*FILE *mbuf_file;
 	mbuf_file = fopen("mbuf_dump.txt","a");
 	fprintf(mbuf_file, "\n ------------------ \n Port: ----");
 	rte_pktmbuf_dump(mbuf_file,encoded_mbuf,1000);
 	fclose(mbuf_file);*/
 
 	free(data_out);
-/*	l2fwd_learning_forward(encoded_mbuf,portid);*/
+  /*l2fwd_learning_forward(encoded_mbuf,portid);*/
 }
 
-/*static void
-net_recode()
+static void
+net_recode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
 
-}*/
+}
 
 /* main processing loop */
 static void
@@ -437,14 +424,15 @@ l2fwd_main_loop(void)
 
 	}
 
+	//Network coding.
 	//Encoded and decoder factory
-	kodoc_factory_t encoder_factory = kodoc_new_encoder_factory(
-		codec,finite_field,max_symbols,max_symbol_size);
-	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(
-		codec,finite_field,max_symbols,max_symbol_size);
+	kodoc_factory_t encoder_factory = kodoc_new_encoder_factory(codec,finite_field,max_symbols,max_symbol_size);
+	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(codec,finite_field,max_symbols,max_symbol_size);
 	//Create encoder and decoder
 	kodoc_coder_t encoder = kodoc_factory_build_coder(encoder_factory);
 	kodoc_coder_t decoder = kodoc_factory_build_coder(decoder_factory);
+	//Coding Capable flag
+	uint8_t coding_capable = 0;
 
 	while (!force_quit) {
 
@@ -492,11 +480,59 @@ l2fwd_main_loop(void)
 				//Send recieved packets to tx, for each packet recieved
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
-				if(network_coding == 1)
+
+				//Get recieved packet
+				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+				//Get ether type
+				uint16_t ether_type = (data[13] | (data[12] << 8));
+
+				if(likely(network_coding == 1))
 				{
-					net_encode(m,portid,&encoder,&decoder);
+					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to normal forwarding (4).
+					//Encoded, Decoded and Recoded algorithms will send to normal forwarding once complete. i.e 4 possible directions.
+
+					//Check if next hop is coding capable, or has coding capable nodes.
+					for (int k=0;k<MAC_ENTRIES;k++)
+					{
+						if(mac_fwd_table[k].port == portid && mac_fwd_table[k].coding_capable == 1) //Go to encode(1) or recode(3).
+						{
+							coding_capable = 1;
+							break;
+						}
+					}
+					if(coding_capable == 1) //Go to encode(1) or recode(3).
+					{
+						//Check if packet is encoded (NC type).
+						if(ether_type == 0x2020) //Go to recode()3.
+						{
+							net_recode(m, portid, &encoder, &decoder);
+							printf("\nRecode\n");
+						}
+						else //Go to encode(1).
+						{
+							net_encode(m, portid, &encoder, &decoder);
+							printf("\nEncode\n");
+						}
+					}
+					else //Go to decode(2) or normal forwarding(4).
+					{
+						//Check if packet is encoded (NC type).
+						if(ether_type == 0x2020) //Go to decode(2).
+						{
+							net_decode(m, portid, &encoder, &decoder);
+							printf("\nDecode\n");
+						}
+						else //Go to normal forwarding(4).
+						{
+							l2fwd_learning_forward(m, portid);
+							printf("\nNocode\n");
+						}
+					}
+					//Reset coding capable flag.
+					coding_capable = 0;
 				}	
-				else
+				else //Operate like a normal learning switch.
 				{
 					l2fwd_learning_forward(m, portid);
 				}
@@ -507,7 +543,6 @@ l2fwd_main_loop(void)
 	//Cleanup after network coding
 	kodoc_delete_coder(encoder);
 	kodoc_delete_coder(decoder);
-
 	kodoc_delete_factory(encoder_factory);
 	kodoc_delete_factory(decoder_factory);
 }
