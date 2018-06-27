@@ -275,16 +275,13 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 		}
 	}
 
-	//Loop through each port queue to code.
-
 	//If encoder rank is less than number of symbols, then encode data.
 	uint32_t rank = kodoc_rank(*encoder);
 	if(rank < kodoc_symbols(*encoder))
 	{
 		//Assign data buffer to encoder
-		uint32_t symbol_size = kodoc_symbol_size(*encoder);
 		uint8_t* symbol = data_in;
-		kodoc_set_const_symbol(*encoder, rank, symbol, symbol_size);
+		kodoc_set_const_symbol(*encoder, rank, symbol, kodoc_symbol_size(*encoder));
 	}
 
 	//Writes a symbol to the payload buffer.
@@ -293,7 +290,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 	       rank, bytes_used);
 
 	//Create mbuf for encoded reply
-	/*struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+	struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
 	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,50);
 	struct ether_hdr eth_hdr = {	
 		d_addr, //Same as incoming source addr.
@@ -303,84 +300,82 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 	encoded_data = rte_memcpy(encoded_data,&eth_hdr,ETHER_HDR_LEN);
 	encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,payload,sizeof(payload));
 
-	//Dump packets into a file
-	FILE *mbuf_file;
-	mbuf_file = fopen("mbuf_dump.txt","a");
-	fprintf(mbuf_file, "\n ------------------ \n Port: ----");
-	rte_pktmbuf_dump(mbuf_file,encoded_mbuf,1000);
-	fclose(mbuf_file);*/
-
-	//net_decode(m, portid, encoder, decoder);
-
 	free(data_in);
 	free(payload);
 
 	//l2fwd_learning_forward(encoded_mbuf,portid);
+	net_decode(encoded_mbuf, portid, encoder, decoder);
+	rte_pktmbuf_free(encoded_mbuf);
+
 }
 
 static void
 net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
 	//Get recieved packet
-	//const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+	//Get ethernet dst and src
+	struct ether_addr d_addr = { 
+		{data[0],data[1],data[2],data[3],data[4],data[5]}
+	};
+	struct ether_addr s_addr = {
+		{data[6],data[7],data[8],data[9],data[10],data[11]}
+	};
 
 	//Create Data buffers
-	uint32_t block_size = kodoc_block_size(*encoder);
-	uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*encoder));
+	uint32_t block_size = kodoc_block_size(*decoder);
+	uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*decoder));
 	uint8_t* data_out = (uint8_t*) malloc(block_size);
 
 	kodoc_set_mutable_symbols(*decoder,data_out,block_size);
 
 	//Start decoding process
-	while(!kodoc_is_complete(*decoder))
+	/*while(!kodoc_is_complete(*decoder))
 	{
-		//Populate payload with decoded data
-		//COntinue HERE
-		//Get encoded rte_mbufs from l2fwd_pktmbuf_pool.
 
-		//Pass payload to decoder
-		kodoc_read_payload(*decoder,payload);
-		printf("Payload processed by decoder, current rank = %d\n",
-		       kodoc_rank(*decoder));
+	}*/
 
-		//Check if decoder supports partial decoding, and if the decoding is partially complete
-		if(kodoc_has_partial_decoding_interface(*decoder) && kodoc_is_partially_complete(*decoder))
+	//Fill payload with data.
+	for(uint32_t j=0;j<sizeof(data)+14;j++)
+	{
+		if(j<rte_pktmbuf_data_len(m))
 		{
-			break;
-			/*//Loop through each symbol
-			for(uint i = 0; i< max_symbols; i++)
-			{
-
-			}*/
+			payload[j] = data[j+14]; //Data starts at 14th byte position, after src and dst.
 		}
-
+		else
+		{
+			payload[j] = 0; //Pad with zeros after payload
+		}
 	}
 
+	//Error here somewhere....
+	//Pass payload to decoder
+	kodoc_read_payload(*decoder,payload);
+
+	printf("Payload processed by decoder, current rank = %d\nDecoded Message:",
+	       kodoc_rank(*decoder));
 	for(uint i =0;i<max_symbols-1;i++)
 	{
-		printf("%c\n", data_out[i]);
+		printf("%c", data_out[i]);
 	}
+	printf("\n");
 
 	//Create mbuf for decoded reply
-  /*struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,50);
+  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+	char* decoded_data = rte_pktmbuf_append(decoded_mbuf,50);
 	struct ether_hdr eth_hdr = {	
 		d_addr, //Same as incoming source addr.
 		s_addr, //Port mac address
 		0x0800 //Normal Ipv4 ether type
 	};	
-	encoded_data = rte_memcpy(encoded_data,&eth_hdr,ETHER_HDR_LEN);
-	encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,payload,sizeof(payload));*/
-
-	//Dump packets into a file
-  /*FILE *mbuf_file;
-	mbuf_file = fopen("mbuf_dump.txt","a");
-	fprintf(mbuf_file, "\n ------------------ \n Port: ----");
-	rte_pktmbuf_dump(mbuf_file,encoded_mbuf,1000);
-	fclose(mbuf_file);*/
+	decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
+	rte_memcpy(decoded_data+ETHER_HDR_LEN,data_out,sizeof(data_out));
 
 	free(data_out);
-  /*l2fwd_learning_forward(encoded_mbuf,portid);*/
+	free(payload);
+	
+  	l2fwd_learning_forward(decoded_mbuf,portid);
+  	rte_pktmbuf_free(decoded_mbuf);
 }
 
 static void
@@ -487,6 +482,11 @@ l2fwd_main_loop(void)
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));
 
+				//Get dst address
+				struct ether_addr d_addr = { 
+					{data[0],data[1],data[2],data[3],data[4],data[5]}
+				};
+
 				if(likely(network_coding == 1))
 				{
 					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to normal forwarding (4).
@@ -495,10 +495,14 @@ l2fwd_main_loop(void)
 					//Check if next hop is coding capable, or has coding capable nodes.
 					for (int k=0;k<MAC_ENTRIES;k++)
 					{
-						if(mac_fwd_table[k].port == portid && mac_fwd_table[k].coding_capable == 1) //Go to encode(1) or recode(3).
+						if((memcmp(mac_fwd_table[k].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) && mac_fwd_table[k].coding_capable == 1) //Go to encode(1) or recode(3).
 						{
 							coding_capable = 1;
 							break;
+						}
+						else if(d_addr.addr_bytes[5] == 7) //Temp to say that port1 (debB is coding capable)
+						{
+							coding_capable = 1;
 						}
 					}
 					if(coding_capable == 1) //Go to encode(1) or recode(3).
