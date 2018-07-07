@@ -265,7 +265,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 	uint8_t* data_in = (uint8_t*) malloc(block_size);
 
 	//Fill data_in with data.
-	for(uint32_t j=0;j<10;j++)
+	for(uint j=0;j<max_symbol_size-1;j++)
 	{
 		if(j<rte_pktmbuf_data_len(m))
 		{
@@ -291,20 +291,30 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 
 	//Create mbuf for encoded reply
 	struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,50);
+	char* encoded_data = rte_pktmbuf_append(encoded_mbuf,rte_pktmbuf_data_len(m));
 	struct ether_hdr eth_hdr = {	
 		d_addr, //Same as incoming source addr.
 		s_addr, //Port mac address
 		0x2020 //My custom NC Ether type?
 	};	
 	encoded_data = rte_memcpy(encoded_data,&eth_hdr,ETHER_HDR_LEN);
-	encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,payload,10);
+	encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,payload,max_symbol_size);
 
 	free(data_in);
 	free(payload);
 
 	//l2fwd_learning_forward(encoded_mbuf,portid);
-	net_decode(encoded_mbuf, portid, decoder);
+
+	// Simulate a 50% packet loss.
+	if (rand() % 2)
+	{
+	    printf("Packet dropped\n");
+	}
+	else
+	{
+		printf("Packet sent to decoder\n");
+		net_decode(encoded_mbuf, portid, decoder);
+	}
 	rte_pktmbuf_free(encoded_mbuf);
 
 }
@@ -328,8 +338,7 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 	uint8_t* data_out = (uint8_t*) malloc(block_size);
 
 	//Fill payload to decode, with data.
-
-	for(uint32_t j=0;j<10;j++)
+	for(uint j=0;j<max_symbol_size-1;j++)
 	{
 		if(j<rte_pktmbuf_data_len(m))
 		{
@@ -363,13 +372,15 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 				//Flag symbol as decoded and seen.
 				decoded_symbols[i] = 1;
 
+				uint8_t* data_no_ethertype = (uint8_t*) malloc(block_size);
+
 				//This symbol is newely decoded, send through to normal forwarding.
 				//Print decoded message
 				printf("\nDecoded Message:\n");
-				for(uint k =0;k<max_symbols-1;k++)
+				for(uint k =2;k<max_symbol_size-1;k++)
 				{
-					data_out[k] = data_out[k+1];
-					printf("%c", data_out[k]);
+					data_no_ethertype[k-2] = data_out[k];
+					printf("%c ", data_no_ethertype[k-2]);
 				}
 				printf("\n");
 
@@ -378,25 +389,26 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 
 				//Create mbuf for decoded reply
 			  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-				char* decoded_data = rte_pktmbuf_append(decoded_mbuf,50);
+				char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
 				struct ether_hdr eth_hdr = {	
 					d_addr, //Same as incoming source addr.
 					s_addr, //Port mac address
 					original_ether_type//Ether_type from decoded packet.
 				};	
 				decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
-				rte_memcpy(decoded_data+ETHER_HDR_LEN,data_out,10);
+				rte_memcpy(decoded_data+ETHER_HDR_LEN,data_no_ethertype,max_symbol_size);
 
 				//Dump packets into a file
 				FILE *mbuf_file;
 				mbuf_file = fopen("mbuf_dump.txt","a");
 				fprintf(mbuf_file, "\n ------------------ \n Port:%d ----",portid);
-				rte_pktmbuf_dump(mbuf_file,decoded_mbuf,1000);
+				rte_pktmbuf_dump(mbuf_file,decoded_mbuf,1414);
 				fprintf(mbuf_file,"------Decoded------\n"); //Decode raw frame.
 				fclose(mbuf_file);
 				
 			  	l2fwd_learning_forward(decoded_mbuf,portid);
 			  	rte_pktmbuf_free(decoded_mbuf);
+			  	free(data_no_ethertype);
 			}
 		}
 	}
@@ -460,6 +472,19 @@ l2fwd_main_loop(void)
 	memset(decoded_symbols, '\0', max_symbols*sizeof(uint8_t)); //Set all elements to zero.
 
 	while (!force_quit) {
+
+		//Reset encoder and decoder after full rank.
+		if(kodoc_rank(encoder) == max_symbols)
+		{
+			kodoc_delete_coder(encoder);
+			encoder = kodoc_factory_build_coder(encoder_factory);
+		}
+		if(kodoc_rank(decoder) == max_symbols)
+		{
+			kodoc_delete_coder(decoder);
+			memset(decoded_symbols, '\0', max_symbols*sizeof(uint8_t)); //Set all elements to zero.
+			decoder = kodoc_factory_build_coder(decoder_factory);
+		}
 
 		cur_tsc = rte_rdtsc();
 
