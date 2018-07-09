@@ -112,6 +112,13 @@ static uint32_t finite_field = kodoc_binary8;
 //Coding
 static uint8_t* decoded_symbols;
 
+//Encoding buffers.
+/*struct packet {
+	struct ether_hdr eth_hdr;
+	uint8_t payload[1400];
+};
+struct packet encoding_buffer[max_symbols];*/
+
 static volatile bool force_quit;
 
 /* MAC updating enabled by default */
@@ -305,16 +312,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 
 	//l2fwd_learning_forward(encoded_mbuf,portid);
 
-	// Simulate a 50% packet loss.
-	if (rand() % 2)
-	{
-	    printf("Packet dropped\n");
-	}
-	else
-	{
-		printf("Packet sent to decoder\n");
-		net_decode(encoded_mbuf, portid, decoder);
-	}
+	net_decode(encoded_mbuf, portid, decoder);
 	rte_pktmbuf_free(encoded_mbuf);
 
 }
