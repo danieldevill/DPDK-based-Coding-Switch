@@ -17,8 +17,8 @@ sudo ip link set ens6 down
 sudo ip link set ens7 down
 #sudo modprobe uio_pci_generic
 sudo modprobe igb_uio
-#sudo insmod $RTE_SDK/build/kmod/igb_uio.ko
-sudo $RTE_SDK/usertools/dpdk-devbind.py --bind=igb_uio ens4 ens5 ens6 ens7
+#sudo insmod /usr/src/dpdk-stable-17.11.1/build/kmod/igb_uio.ko
+sudo /usr/src/dpdk-stable-17.11.1/usertools/dpdk-devbind.py --bind=igb_uio ens4 ens5 ens6 ens7
 
 #Start ovsdb
 # export DB_SOCK=/var/run/openvswitch/db.sock
@@ -45,7 +45,7 @@ sudo $RTE_SDK/usertools/dpdk-devbind.py --bind=igb_uio ens4 ens5 ens6 ens7
 # sudo ovs-ofctl add-flow br0 in_port=4,action=output:3
 
 #Print outputs of dpdk drivers and ovs-vsctl/ovs-ofctl to confirm.
-sudo $RTE_SDK/usertools/dpdk-devbind.py -s
+sudo /usr/src/dpdk-stable-17.11.1/usertools/dpdk-devbind.py -s
 # sudo ovs-vsctl show
 # sudo ovs-ofctl dump-flows br0
 
