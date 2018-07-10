@@ -116,7 +116,18 @@ static uint8_t* data_out;
 struct packet {
 	uint8_t payload[MAX_SYMBOL_SIZE];
 };
-struct packet encoding_buffer[MAX_SYMBOLS];
+struct packet encoding_buffer_A[MAX_SYMBOLS];
+struct packet encoding_buffer_B[MAX_SYMBOLS];
+struct packet encoding_buffer_C[MAX_SYMBOLS];
+struct packet encoding_buffer_D[MAX_SYMBOLS];
+//Decoding buffers.
+struct packet decoding_buffer_A[MAX_SYMBOLS];
+struct packet decoding_buffer_B[MAX_SYMBOLS];
+struct packet decoding_buffer_C[MAX_SYMBOLS];
+struct packet decoding_buffer_D[MAX_SYMBOLS];
+//Stats counter
+static uint32_t packets_nodrop = 0;
+static uint32_t packets_drop = 0;
 
 static volatile bool force_quit;
 
@@ -180,6 +191,8 @@ struct rte_mempool * l2fwd_pktmbuf_pool = NULL;
 #define MAX_TIMER_PERIOD 86400 /* 1 day max */
 /* A tsc-based timer responsible for triggering statistics printout */
 static uint64_t timer_period = 10; /* default period is 10 seconds */
+
+//Functions defined by D.B.B de Villiers
 
 static void
 l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
@@ -312,17 +325,19 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 /*	if (rand() % 2)
 	{
 		printf("Packet not dropped\n");
+		packets_nodrop++;
 		net_decode(encoded_mbuf, portid, decoder);
-		net_decode(encoded_mbuf, portid, decoder);
+		//net_decode(encoded_mbuf, portid, decoder);
 	}
 	else
 	{
 		printf("Packet Dropped\n");
-	}*/
+		packets_drop++;
+	}
+	printf("Stats (Packet loss) : %u/%u(%d%%)\n", packets_drop,(packets_drop+packets_nodrop),(100*packets_drop/(packets_drop+packets_nodrop)));*/
 
 	net_decode(encoded_mbuf, portid, decoder);
 	rte_pktmbuf_free(encoded_mbuf);
-
 }
 
 static void
@@ -362,7 +377,7 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 	kodoc_read_payload(*decoder,payload);
 
 	//Decoder rank indicates how many symbols have been decoded.
-	//printf("Payload processed by decoder, current rank = %d and %d", kodoc_rank(*decoder),kodoc_is_partially_complete(*decoder));
+	printf("Payload processed by decoder, current rank = %d and %d\n", kodoc_rank(*decoder),kodoc_is_partially_complete(*decoder));
 
 	//Start decoding process
 	if(kodoc_has_partial_decoding_interface(*decoder) && kodoc_is_partially_complete(*decoder)) //Check if decoder supports partial decoding (which it should) and if symbols have been decoded.
@@ -370,6 +385,7 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 		//Loop through all symbols in generation. Find which symbol has been decoded.
 		for(uint i = 0;i<kodoc_symbols(*decoder);i++)
 		{
+			printf("Decoded symbols: %u\n", decoded_symbols[i]);
 			if(!decoded_symbols[i] && kodoc_is_symbol_uncoded(*decoder,i)) //Symbol is decoded, check if symbol has already been seen.
 			{
 				//Flag symbol as decoded and seen.
@@ -383,7 +399,10 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 				for(uint k =2;k<MAX_SYMBOL_SIZE-1;k++)
 				{
 					data_no_ethertype[k-2] = data_out[k+(i*kodoc_symbol_size(*decoder))];
-					printf("%c ", data_no_ethertype[k-2]);
+					if(data_no_ethertype[k-2])
+					{
+						printf("%c ", data_no_ethertype[k-2]);
+					}
 				}
 				printf("\n");
 
@@ -416,12 +435,6 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 		}
 	}
 
-	for(uint k =2;k<(5*MAX_SYMBOL_SIZE)-1;k++)
-	{
-		printf("%c ", data_out[k-2]);
-	}
-
-	//free(data_out);
 	free(payload);
 }
 
@@ -429,6 +442,22 @@ static void
 net_recode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
 	printf("%ld %ld %ld %ld\n",sizeof(m), sizeof(portid),sizeof(encoder),sizeof(decoder) );
+}
+
+static void 
+reset_encoder(kodoc_coder_t *encoder, kodoc_factory_t *encoder_factory)
+{
+	kodoc_delete_coder(*encoder);
+	*encoder = kodoc_factory_build_coder(*encoder_factory);
+}
+
+static void 
+reset_decoder(kodoc_coder_t *decoder)
+{
+	uint32_t block_size = kodoc_block_size(*decoder);
+	memset(decoded_symbols, '\0', MAX_SYMBOLS*sizeof(uint8_t)); //Set all elements to zero.
+	data_out = (uint8_t*) malloc(block_size);
+	kodoc_set_mutable_symbols(*decoder,data_out, block_size);
 }
 
 /* main processing loop */
@@ -463,10 +492,10 @@ l2fwd_main_loop(void)
 		portid = qconf->rx_port_list[i];
 		RTE_LOG(INFO, L2FWD, " -- lcoreid=%u portid=%u\n", lcore_id,
 			portid);
-
 	}
 
 	//Network coding.
+
 	//Encoded and decoder factory
 	kodoc_factory_t encoder_factory = kodoc_new_encoder_factory(codec,finite_field,MAX_SYMBOLS,MAX_SYMBOL_SIZE);
 	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(codec,finite_field,MAX_SYMBOLS,MAX_SYMBOL_SIZE);
@@ -475,27 +504,28 @@ l2fwd_main_loop(void)
 	kodoc_coder_t decoder = kodoc_factory_build_coder(decoder_factory);
 	//Coding Capable flag
 	uint8_t coding_capable = 0;
-
-	uint32_t block_size = kodoc_block_size(decoder);
-	data_out = (uint8_t*) malloc(block_size);
-	kodoc_set_mutable_symbols(decoder,data_out, block_size);
-
+	//Decoder Config
 	decoded_symbols = (uint8_t*)malloc(MAX_SYMBOLS*sizeof(uint8_t));
-	memset(decoded_symbols, '\0', MAX_SYMBOLS*sizeof(uint8_t)); //Set all elements to zero.
+	reset_decoder(&decoder);
 
 	while (!force_quit) {
 
-		//Reset encoder and decoder after full rank.
-		if(kodoc_rank(encoder) == MAX_SYMBOLS)
+		if(likely(network_coding == 1))
 		{
-			kodoc_delete_coder(encoder);
-			encoder = kodoc_factory_build_coder(encoder_factory);
-		}
-		if(kodoc_rank(decoder) == MAX_SYMBOLS)
-		{
-			kodoc_delete_coder(decoder);
-			decoder = kodoc_factory_build_coder(decoder_factory);
-			memset(decoded_symbols, '\0', MAX_SYMBOLS*sizeof(uint8_t)); //Set all elements to zero.
+			//Reset encoder and decoder after full rank.
+			if(kodoc_rank(encoder) == MAX_SYMBOLS)
+			{
+				printf("Error\n");
+				reset_encoder(&encoder, &encoder_factory);
+			}
+			if(kodoc_rank(decoder) == MAX_SYMBOLS)
+			{
+				printf("Error\n");
+				kodoc_delete_coder(decoder);
+				decoder = kodoc_factory_build_coder(decoder_factory);
+				free(data_out);
+				reset_decoder(&decoder);			
+			}
 		}
 
 		cur_tsc = rte_rdtsc();
@@ -570,6 +600,7 @@ l2fwd_main_loop(void)
 						else if(d_addr.addr_bytes[5] == 7) //Temp to say that port1 (debB is coding capable)
 						{
 							coding_capable = 1;
+							break;
 						}
 					}
 					if(coding_capable == 1) //Go to encode(1) or recode(3).
@@ -617,6 +648,8 @@ l2fwd_main_loop(void)
 	kodoc_delete_factory(encoder_factory);
 	kodoc_delete_factory(decoder_factory);
 }
+
+//DPDK Specific Functions.
 
 static int
 l2fwd_launch_one_lcore(__attribute__((unused)) void *dummy)
@@ -752,8 +785,8 @@ l2fwd_parse_args(int argc, char **argv)
 static void
 check_all_ports_link_status(uint16_t port_num, uint32_t port_mask)
 {
-#define CHECK_INTERVAL 100 /* 100ms */
-#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+	#define CHECK_INTERVAL 100 /* 100ms */
+	#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
 	uint16_t portid;
 	uint8_t count, all_ports_up, print_flag = 0;
 	struct rte_eth_link link;
