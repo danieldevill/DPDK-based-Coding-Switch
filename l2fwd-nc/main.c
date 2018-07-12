@@ -113,11 +113,9 @@ static uint32_t finite_field = kodoc_binary8;
 static uint8_t* decoded_symbols;
 static uint8_t* data_out;
 //Encoding buffers.
-static struct rte_mbuf* encoding_buffer[MAX_SYMBOLS];
-static uint8_t* encoding_buffer_counters;
+static struct rte_mbuf** encoding_buffer;
 //Decoding buffers.
-static struct rte_mbuf* decoding_buffer[MAX_SYMBOLS];
-static uint8_t* decoding_buffer_counters;
+static struct rte_mbuf** decoding_buffer;
 //Stats counter
 static uint32_t packets_nodrop = 0;
 static uint32_t packets_drop = 0;
@@ -453,6 +451,19 @@ reset_decoder(kodoc_coder_t *decoder)
 	kodoc_set_mutable_symbols(*decoder,data_out, block_size);
 }
 
+static void
+coding_setup(void)
+{
+	//Configure encoder and decoder buffers
+	encoding_buffer = (struct rte_mbuf**)malloc(rte_eth_dev_count()*sizeof(struct rte_mbuf*));
+	decoding_buffer = (struct rte_mbuf**)malloc(rte_eth_dev_count()*sizeof(struct rte_mbuf*));
+	for(uint port = 0;port<rte_eth_dev_count();port++)
+	{
+		encoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
+		decoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
+	}
+}
+
 /* main processing loop */
 static void
 l2fwd_main_loop(void)
@@ -500,12 +511,6 @@ l2fwd_main_loop(void)
 	//Decoder Config
 	decoded_symbols = (uint8_t*)malloc(MAX_SYMBOLS*sizeof(uint8_t));
 	reset_decoder(&decoder);
-	//Configure encoder and decoder buffers
-	encoding_buffer = (struct rte_mbuf**)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf*));
-	for (portid = 0; portid < rte_eth_dev_count(); portid++) 
-	{
-		printf("%d\n",encoding_buffer[portid]);
-	}
 
 	while (!force_quit) {
 
@@ -1002,6 +1007,9 @@ main(int argc, char **argv)
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
 
 	}
+
+	//DD
+	coding_setup();
 
 	check_all_ports_link_status(nb_ports, l2fwd_enabled_port_mask);
 
