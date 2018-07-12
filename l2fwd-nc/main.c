@@ -113,18 +113,11 @@ static uint32_t finite_field = kodoc_binary8;
 static uint8_t* decoded_symbols;
 static uint8_t* data_out;
 //Encoding buffers.
-struct packet {
-	uint8_t payload[MAX_SYMBOL_SIZE];
-};
-struct packet encoding_buffer_A[MAX_SYMBOLS];
-struct packet encoding_buffer_B[MAX_SYMBOLS];
-struct packet encoding_buffer_C[MAX_SYMBOLS];
-struct packet encoding_buffer_D[MAX_SYMBOLS];
+static struct rte_mbuf* encoding_buffer[MAX_SYMBOLS];
+static uint8_t* encoding_buffer_counters;
 //Decoding buffers.
-struct packet decoding_buffer_A[MAX_SYMBOLS];
-struct packet decoding_buffer_B[MAX_SYMBOLS];
-struct packet decoding_buffer_C[MAX_SYMBOLS];
-struct packet decoding_buffer_D[MAX_SYMBOLS];
+static struct rte_mbuf* decoding_buffer[MAX_SYMBOLS];
+static uint8_t* decoding_buffer_counters;
 //Stats counter
 static uint32_t packets_nodrop = 0;
 static uint32_t packets_drop = 0;
@@ -322,7 +315,7 @@ net_encode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_co
 
 	//l2fwd_learning_forward(encoded_mbuf,portid);
 
-/*	if (rand() % 2)
+  /*if (rand() % 2)
 	{
 		printf("Packet not dropped\n");
 		packets_nodrop++;
@@ -421,12 +414,12 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 				rte_memcpy(decoded_data+ETHER_HDR_LEN,data_no_ethertype,MAX_SYMBOL_SIZE);
 
 				//Dump packets into a file
-				FILE *mbuf_file;
+			  /*FILE *mbuf_file;
 				mbuf_file = fopen("mbuf_dump.txt","a");
 				fprintf(mbuf_file, "\n ------------------ \n Port:%d ----",portid);
 				rte_pktmbuf_dump(mbuf_file,decoded_mbuf,1414);
 				fprintf(mbuf_file,"------Decoded------\n"); //Decode raw frame.
-				fclose(mbuf_file);
+				fclose(mbuf_file);*/
 				
 			  	l2fwd_learning_forward(decoded_mbuf,portid);
 			  	rte_pktmbuf_free(decoded_mbuf);
@@ -507,6 +500,12 @@ l2fwd_main_loop(void)
 	//Decoder Config
 	decoded_symbols = (uint8_t*)malloc(MAX_SYMBOLS*sizeof(uint8_t));
 	reset_decoder(&decoder);
+	//Configure encoder and decoder buffers
+	encoding_buffer = (struct rte_mbuf**)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf*));
+	for (portid = 0; portid < rte_eth_dev_count(); portid++) 
+	{
+		printf("%d\n",encoding_buffer[portid]);
+	}
 
 	while (!force_quit) {
 
@@ -515,12 +514,10 @@ l2fwd_main_loop(void)
 			//Reset encoder and decoder after full rank.
 			if(kodoc_rank(encoder) == MAX_SYMBOLS)
 			{
-				printf("Error\n");
 				reset_encoder(&encoder, &encoder_factory);
 			}
 			if(kodoc_rank(decoder) == MAX_SYMBOLS)
 			{
-				printf("Error\n");
 				kodoc_delete_coder(decoder);
 				decoder = kodoc_factory_build_coder(decoder_factory);
 				free(data_out);
