@@ -1,6 +1,6 @@
 #!/bin/sh
 
-hosts=4
+hosts=8
 count=1
 while [ $count -le $hosts ]
 do

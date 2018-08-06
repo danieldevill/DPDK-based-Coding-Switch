@@ -7,11 +7,10 @@ sudo ./ifup
 
 echo "Interfaces up!"
 
-#Run mininet in QEMU vm with rocker
-#start qemu debian vm image
-sudo qemu-system-x86_64 vm-images/mininet.qcow2 \
+#Start qemu debian vm image (Switch0)
+sudo qemu-system-x86_64 vm-images/switch0.qcow2 \
 -accel kvm -display none \
--m size=6G \
+-m size=3G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
 -smp 8 -numa node,nodeid=0  \
 -device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22 \
@@ -26,17 +25,40 @@ sudo qemu-system-x86_64 vm-images/mininet.qcow2 \
 
 sleep 5
 
-#Start ssh terminals for the sw vm.`
+#Start qemu debian vm image (Switch1)
+sudo qemu-system-x86_64 vm-images/switch1.qcow2 \
+-accel kvm -display none \
+-m size=3G \
+-cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
+-smp 8 -numa node,nodeid=0  \
+-device e1000,vlan=5 -net user,name=net6,vlan=5,hostfwd=tcp::10023-:22 \
+-device e1000,vlan=6,mac=de:ad:be:ef:01:02 \
+-net tap,name=net7,vlan=6,ifname=sw_tap5,script=no,downscript=no \
+-device e1000,vlan=7,mac=de:ad:be:ef:01:03 \
+-net tap,name=net8,vlan=7,ifname=sw_tap6,script=no,downscript=no \
+-device e1000,vlan=8,mac=de:ad:be:ef:01:04 \
+-net tap,name=net9,vlan=8,ifname=sw_tap7,script=no,downscript=no \
+-device e1000,vlan=9,mac=de:ad:be:ef:01:05 \
+-net tap,name=net10,vlan=9,ifname=sw_tap8,script=no,downscript=no &
+
+sleep 5
+
+#Start ssh terminals for the sw vm.
 terminator -g swcli_config &
 
 sleep 5
 
 #Start qemu hosts A,B,C and D: Setup is done in a terminator config file
-sudo terminator -g hostscli_config
+sudo terminator -g hostscli_config_sw0
+
+sleep 5
+
+#Start qemu hosts E,F,G and H: Setup is done in a terminator config file
+sudo terminator -g hostscli_config_sw1
 
 #Backup mininet working to Dropbox folder`
-sudo scp -P 10022 -r mininet@localhost:~/l2fwd-nc/* ~/Working/DPDK-based-Coding-Switch/l2fwd-nc/
-sudo scp -P 10022 -r mininet@localhost:~/setup_ovsdpdk.sh ~/Working/DPDK-based-Coding-Switch/
+#sudo scp -P 10022 -r mininet@localhost:~/l2fwd-nc/* ~/Working/DPDK-based-Coding-Switch/l2fwd-nc/
+#sudo scp -P 10022 -r mininet@localhost:~/setup_ovsdpdk.sh ~/Working/DPDK-based-Coding-Switch/
 
 #Close switch virtual machine
 sudo pkill -f qemu-system-x86_64

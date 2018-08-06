@@ -6,10 +6,12 @@
   [[default]]
     [[[child0]]]
       fullscreen = False
+      last_active_term = 09838e70-d02d-46af-8f11-dda60381dd51
+      last_active_window = True
       maximised = False
       order = 0
       parent = ""
-      position = 965:6
+      position = 6:6
       size = 947, 1040
       title = OVS VM
       type = Window
@@ -19,20 +21,50 @@
       position = 518
       ratio = 0.500483091787
       type = VPaned
-    [[[terminal2]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+    [[[child2]]]
       order = 0
       parent = child1
-      profile = default
-      type = Terminal
-      uuid = 81ec6629-f37c-4590-816d-476a488f061b
-    [[[terminal3]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+      position = 471
+      ratio = 0.5
+      type = HPaned
+    [[[child5]]]
       order = 1
       parent = child1
+      position = 471
+      ratio = 0.5
+      type = HPaned
+    [[[terminal3]]]
+      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+      order = 0
+      parent = child2
       profile = default
+      title = switch0
       type = Terminal
-      uuid = 9c651cf7-e704-4390-9644-12a8f4d66965
+      uuid = 09838e70-d02d-46af-8f11-dda60381dd51
+    [[[terminal4]]]
+      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+      order = 1
+      parent = child2
+      profile = default
+      title = switch0
+      type = Terminal
+      uuid = 0974a48d-5452-4129-afb9-26ca47b416c6
+    [[[terminal6]]]
+      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10023; bash
+      order = 0
+      parent = child5
+      profile = default
+      title = switch1
+      type = Terminal
+      uuid = 667bd6db-3aa7-424a-97ec-93b3811d848c
+    [[[terminal7]]]
+      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10023; bash
+      order = 1
+      parent = child5
+      profile = default
+      title = switch1
+      type = Terminal
+      uuid = 3e1f992c-64a3-4d32-aff2-b8e42195d40f
 [plugins]
 [profiles]
   [[default]]
