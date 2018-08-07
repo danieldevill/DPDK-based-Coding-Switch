@@ -1,0 +1,135 @@
+[global_config]
+[keybindings]
+  hide_window = None
+[layouts]
+  [[default]]
+    [[[child0]]]
+      fullscreen = False
+      last_active_term = b63926d1-76df-4a50-a4d6-7caaefa1a498
+      last_active_window = True
+      maximised = False
+      order = 0
+      parent = ""
+      position = 6:6
+      size = 947, 1040
+      title = sw1_hosts
+      type = Window
+    [[[child1]]]
+      order = 0
+      parent = child0
+      position = 518
+      ratio = 0.500483091787
+      type = VPaned
+    [[[child10]]]
+      order = 0
+      parent = child9
+      position = 259
+      ratio = 0.501937984496
+      type = VPaned
+    [[[child13]]]
+      order = 1
+      parent = child9
+      position = 259
+      ratio = 0.501937984496
+      type = VPaned
+    [[[child2]]]
+      order = 0
+      parent = child1
+      position = 473
+      ratio = 0.502123142251
+      type = HPaned
+    [[[child3]]]
+      order = 0
+      parent = child2
+      position = 257
+      ratio = 0.500974658869
+      type = VPaned
+    [[[child6]]]
+      order = 1
+      parent = child2
+      position = 257
+      ratio = 0.500974658869
+      type = VPaned
+    [[[child9]]]
+      order = 1
+      parent = child1
+      position = 471
+      ratio = 0.5
+      type = HPaned
+    [[[terminal11]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_E.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:06 -net tap,vlan=0,ifname=deb5_tap,script=no,downscript=no ; bash"
+      order = 0
+      parent = child10
+      profile = default
+      title = debE MAC:de:ad:be:ef:01:06 IPv4:192.168.1.6
+      type = Terminal
+      uuid = b63926d1-76df-4a50-a4d6-7caaefa1a498
+    [[[terminal12]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_G.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:08 -net tap,vlan=0,ifname=deb7_tap,script=no,downscript=no ; bash"
+      order = 1
+      parent = child10
+      profile = default
+      title = debG MAC:de:ad:be:ef:01:08 IPv4:192.168.1.8
+      type = Terminal
+      uuid = 725f7125-68b0-4b53-901b-013ab30f19db
+    [[[terminal14]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_F.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:07 -net tap,vlan=0,ifname=deb6_tap,script=no,downscript=no ; bash"
+      order = 0
+      parent = child13
+      profile = default
+      title = debF MAC:de:ad:be:ef:01:07 IPv4:192.168.1.7
+      type = Terminal
+      uuid = 08196b22-1a49-452a-9cfd-31ec9421545a
+    [[[terminal15]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_H.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:09 -net tap,vlan=0,ifname=deb8_tap,script=no,downscript=no ; bash"
+      order = 1
+      parent = child13
+      profile = default
+      title = debH MAC:de:ad:be:ef:01:09 IPv4:192.168.1.9
+      type = Terminal
+      uuid = 6e3eedec-8da9-45b0-a646-1eaf06bbaca2
+    [[[terminal4]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_A.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:06 -net tap,vlan=0,ifname=deb1_tap,script=no,downscript=no ; bash"
+      order = 0
+      parent = child3
+      profile = default
+      title = debA MAC:de:ad:be:ef:00:06 IPv4:192.168.1.2
+      type = Terminal
+      uuid = 1b74cd87-7f09-47dd-9e63-c983395010d2
+    [[[terminal5]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_C.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:08 -net tap,vlan=0,ifname=deb3_tap,script=no,downscript=no ; bash"
+      order = 1
+      parent = child3
+      profile = default
+      title = debC MAC:de:ad:be:ef:00:08 IPv4:192.168.1.4
+      type = Terminal
+      uuid = 20b54d39-4386-4be7-9b0a-bdc6b55fc5d6
+    [[[terminal7]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_B.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:07 -net tap,vlan=0,ifname=deb2_tap,script=no,downscript=no ; bash"
+      order = 0
+      parent = child6
+      profile = default
+      title = debB MAC:de:ad:be:ef:00:07 IPv4:192.168.1.3
+      type = Terminal
+      uuid = d63bb561-89e5-417a-a7d5-37e4fa3dc389
+    [[[terminal8]]]
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_D.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:09 -net tap,vlan=0,ifname=deb4_tap,script=no,downscript=no ; bash"
+      order = 1
+      parent = child6
+      profile = default
+      title = debD MAC:de:ad:be:ef:00:09 IPv4:192.168.1.5
+      type = Terminal
+      uuid = cb92f823-3756-4a0b-84aa-c0981bcb6f3f
+[plugins]
+[profiles]
+  [[default]]
+    background_darkness = 0.7
+    background_type = transparent
+    cursor_color = "#aaaaaa"
+    cursor_shape = underline
+    font = Noto Sans 12
+    foreground_color = "#ce5c00"
+    palette = "#000000:#cc0000:#4e9a06:#c4a000:#3465a4:#75507b:#06989a:#d3d7cf:#555753:#ef2929:#8ae234:#fce94f:#729fcf:#ad7fa8:#34e2e2:#eeeeec"
+    scroll_on_output = True
+    scrollback_infinite = True
+    scrollback_lines = 504
