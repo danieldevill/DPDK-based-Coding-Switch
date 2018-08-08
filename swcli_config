@@ -34,7 +34,7 @@
       ratio = 0.5
       type = HPaned
     [[[terminal3]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+      command = ssh -X -R 52698:localhost:52698 switch0@localhost -p 10022; bash
       order = 0
       parent = child2
       profile = default
@@ -42,7 +42,7 @@
       type = Terminal
       uuid = 09838e70-d02d-46af-8f11-dda60381dd51
     [[[terminal4]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10022; bash
+      command = ssh -X -R 52698:localhost:52698 switch0@localhost -p 10022; bash
       order = 1
       parent = child2
       profile = default
@@ -50,7 +50,7 @@
       type = Terminal
       uuid = 0974a48d-5452-4129-afb9-26ca47b416c6
     [[[terminal6]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10023; bash
+      command = ssh -X -R 52698:localhost:52698 switch1@localhost -p 10023; bash
       order = 0
       parent = child5
       profile = default
@@ -58,7 +58,7 @@
       type = Terminal
       uuid = 667bd6db-3aa7-424a-97ec-93b3811d848c
     [[[terminal7]]]
-      command = ssh -X -R 52698:localhost:52698 mininet@localhost -p 10023; bash
+      command = ssh -X -R 52698:localhost:52698 switch1@localhost -p 10023; bash
       order = 1
       parent = child5
       profile = default

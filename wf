@@ -10,7 +10,7 @@ echo "Interfaces up!" &&
 #Start qemu debian vm image (Switch0)
 sudo qemu-system-x86_64 vm-images/switch0.qcow2 \
 -accel kvm -display none \
--m size=3G \
+-m size=4G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
 -smp 8 -numa node,nodeid=0  \
 -device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22 \
@@ -21,25 +21,29 @@ sudo qemu-system-x86_64 vm-images/switch0.qcow2 \
 -device e1000,vlan=3,mac=de:ad:be:ef:00:04 \
 -net tap,name=net4,vlan=3,ifname=sw_tap3,script=no,downscript=no \
 -device e1000,vlan=4,mac=de:ad:be:ef:00:05 \
--net tap,name=net5,vlan=4,ifname=sw_tap4,script=no,downscript=no &
+-net tap,name=net5,vlan=4,ifname=sw_tap4,script=no,downscript=no \
+-device e1000,vlan=5,mac=de:ad:be:ef:11:00 \
+-net tap,name=net6,vlan=5,ifname=sw_sw_tap0,script=no,downscript=no &
 
 sleep 5
 
 #Start qemu debian vm image (Switch1)
 sudo qemu-system-x86_64 vm-images/switch1.qcow2 \
 -accel kvm -display none \
--m size=3G \
+-m size=4G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
 -smp 8 -numa node,nodeid=0  \
--device e1000,vlan=5 -net user,name=net6,vlan=5,hostfwd=tcp::10023-:22 \
--device e1000,vlan=6,mac=de:ad:be:ef:01:02 \
--net tap,name=net7,vlan=6,ifname=sw_tap5,script=no,downscript=no \
--device e1000,vlan=7,mac=de:ad:be:ef:01:03 \
--net tap,name=net8,vlan=7,ifname=sw_tap6,script=no,downscript=no \
--device e1000,vlan=8,mac=de:ad:be:ef:01:04 \
--net tap,name=net9,vlan=8,ifname=sw_tap7,script=no,downscript=no \
--device e1000,vlan=9,mac=de:ad:be:ef:01:05 \
--net tap,name=net10,vlan=9,ifname=sw_tap8,script=no,downscript=no &
+-device e1000,vlan=6 -net user,name=net7,vlan=6,hostfwd=tcp::10023-:22 \
+-device e1000,vlan=7,mac=de:ad:be:ef:01:02 \
+-net tap,name=net8,vlan=7,ifname=sw_tap5,script=no,downscript=no \
+-device e1000,vlan=8,mac=de:ad:be:ef:01:03 \
+-net tap,name=net9,vlan=8,ifname=sw_tap6,script=no,downscript=no \
+-device e1000,vlan=9,mac=de:ad:be:ef:01:04 \
+-net tap,name=net10,vlan=9,ifname=sw_tap7,script=no,downscript=no \
+-device e1000,vlan=10,mac=de:ad:be:ef:01:05 \
+-net tap,name=net11,vlan=10,ifname=sw_tap8,script=no,downscript=no \
+-device e1000,vlan=11,mac=de:ad:be:ef:11:11 \
+-net tap,name=net12,vlan=11,ifname=sw_swtap1,script=no,downscript=no &
 
 sleep 5
 

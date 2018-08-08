@@ -14,3 +14,9 @@ do
 
 	((count++))	
 done
+
+#Interswitch TAPS
+ifconfig swswbr down
+brctl delbr swswbr
+tunctl -d sw_sw_tap0
+tunctl -d sw_sw_tap1

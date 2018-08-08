@@ -22,3 +22,13 @@ do
 
 	((count++))	
 done
+
+#Interswitch TAPS
+tunctl -u daniel -t sw_sw_tap0
+tunctl -u daniel -t sw_sw_tap1
+ip link set sw_sw_tap0 up
+ip link set sw_sw_tap1 up
+brctl addbr swswbr
+brctl addif swswbr sw_sw_tap0
+brctl addif swswbr sw_sw_tap1
+ip link set swswbr up
