@@ -29,7 +29,7 @@
   <body id="page-top">
 
     <nav class="navbar navbar-expand navbar-dark bg-dark static-top">
-      <a class="navbar-brand mr-1" href="index.html"><i class="fas fa-fw fa-server"></i> DPDK based coding switch</a>
+      <a class="navbar-brand mr-1" href="index.php"><i class="fas fa-fw fa-server"></i> DPDK based coding switch</a>
     </nav>
 
     <div id="wrapper">
@@ -37,17 +37,17 @@
       <!-- Sidebar -->
       <ul class="sidebar navbar-nav">
         <li class="nav-item active">
-          <a class="nav-link" href="index.html">
+          <a class="nav-link" href="index.php">
             <i class="fas fa-fw fa-tachometer-alt"></i>
             <span>Dashboard</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="settings.html">
+          <a class="nav-link" href="settings.php">
             <i class="fas fa-fw fa-cog"></i>
             <span>Settings</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="logs.html">
+          <a class="nav-link" href="logs.php">
             <i class="fas fa-fw fa-book"></i>
             <span>Logs</span></a>
         </li>
@@ -85,7 +85,11 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-microchip"></i>
                   </div>
-                  <div class="mr-5">CPU and Memory usage</div>
+                  <div class="mr-5">CPU and Memory usage: 
+                    <?php
+                      echo(sys_getloadavg()[0]);
+                    ?>
+                  </div>
                 </div>
               </div>
             </div>

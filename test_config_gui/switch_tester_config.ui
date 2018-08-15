@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>597</width>
-    <height>375</height>
+    <width>550</width>
+    <height>402</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,33 +19,27 @@
      <x>0</x>
      <y>0</y>
      <width>601</width>
-     <height>381</height>
+     <height>401</height>
     </rect>
    </property>
    <property name="currentIndex">
-    <number>1</number>
+    <number>0</number>
    </property>
    <widget class="QWidget" name="tab">
     <attribute name="title">
      <string>Test Commands</string>
     </attribute>
-    <widget class="QFrame" name="frame">
+    <widget class="QPushButton" name="pushButton">
      <property name="geometry">
       <rect>
        <x>10</x>
-       <y>10</y>
-       <width>571</width>
-       <height>281</height>
+       <y>340</y>
+       <width>52</width>
+       <height>24</height>
       </rect>
      </property>
-     <property name="styleSheet">
-      <string notr="true"/>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Raised</enum>
+     <property name="text">
+      <string>Run Test</string>
      </property>
     </widget>
    </widget>
@@ -59,7 +53,7 @@
        <x>0</x>
        <y>0</y>
        <width>601</width>
-       <height>361</height>
+       <height>381</height>
       </rect>
      </property>
      <property name="currentIndex">
@@ -75,7 +69,7 @@
          <x>0</x>
          <y>0</y>
          <width>591</width>
-         <height>331</height>
+         <height>371</height>
         </rect>
        </property>
        <property name="url">
@@ -100,7 +94,7 @@
        </property>
        <property name="url">
         <url>
-         <string>about:blank</string>
+         <string>https://www.google.com/?gws_rd=ssl</string>
         </url>
        </property>
       </widget>
