@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#Bash script to sync working files and configs from switch vm to dev host. (sync flow)
+#Must be run while switch vm is still active.
+
+sudo sshpass -p 'mininet' scp -P 10022 -r switch0@localhost:~/l2fwd-nc/* ~/Working/DPDK-based-Coding-Switch/l2fwd-nc/
+sudo sshpass -p 'mininet' scp -P 10022 -r switch0@localhost:~/setup_ovsdpdk.sh ~/Working/DPDK-based-Coding-Switch/
+sudo sshpass -p 'mininet' scp -P 10022 -r switch0@localhost:/var/www/html/ ~/Working/DPDK-based-Coding-Switch/

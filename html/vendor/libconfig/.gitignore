@@ -1,0 +1,9 @@
+# Random files in root directory
+.travis.yml
+phpunit.xml.dist
+
+# PHPUnit tests
+tests/
+
+# Documentation
+docs/

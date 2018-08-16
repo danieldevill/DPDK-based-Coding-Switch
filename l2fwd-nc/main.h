@@ -7,5 +7,6 @@ static void net_recode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encod
 static void reset_encoder(kodoc_coder_t *encoder, kodoc_factory_t *encoder_factory);
 static void reset_decoder(kodoc_coder_t *decoder);
 static void coding_setup(void);
+static void update_settings(void);
 
 #endif

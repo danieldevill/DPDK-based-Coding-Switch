@@ -15,10 +15,11 @@ sudo ip link set ens4 down
 sudo ip link set ens5 down
 sudo ip link set ens6 down
 sudo ip link set ens7 down
+sudo ip link set ens8 down
 #sudo modprobe uio_pci_generic
 sudo modprobe igb_uio
 #sudo insmod /usr/src/dpdk-stable-17.11.1/build/kmod/igb_uio.ko
-sudo /usr/src/dpdk-stable-17.11.1/usertools/dpdk-devbind.py --bind=igb_uio ens4 ens5 ens6 ens7
+sudo /usr/src/dpdk-stable-17.11.1/usertools/dpdk-devbind.py --bind=igb_uio ens4 ens5 ens6 ens7 ens8
 
 #Start ovsdb
 # export DB_SOCK=/var/run/openvswitch/db.sock

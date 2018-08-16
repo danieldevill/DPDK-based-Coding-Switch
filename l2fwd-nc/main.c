@@ -40,6 +40,9 @@
 #include <time.h>
 #include <kodoc/kodoc.h>
 
+//Include for libconfig
+#include <libconfig.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,8 +120,8 @@ static struct rte_mbuf** encoding_buffer;
 //Decoding buffers.
 static struct rte_mbuf** decoding_buffer;
 //Stats counter
-static uint32_t packets_nodrop = 0;
-static uint32_t packets_drop = 0;
+//static uint32_t packets_nodrop = 0;
+//static uint32_t packets_drop = 0;
 
 static volatile bool force_quit;
 
@@ -131,6 +134,7 @@ static volatile bool force_quit;
 #define NB_MBUF 8192
 
 #define MAX_PKT_BURST 32
+
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 #define MEMPOOL_CACHE_SIZE 256
 
@@ -462,6 +466,28 @@ coding_setup(void)
 		encoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
 		decoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
 	}
+}
+
+//Libconfig setup. DD
+static void
+update_settings(void)
+{
+	config_t cfg;
+	//config_setting_t *setting;
+	const char *str;
+
+	config_init(&cfg);
+	if(!config_read_file(&cfg,"l2fwd-nc.cfg")) //Read config file and display any errors.
+	{
+		printf("An error has occured with the l2fwd-nc.cfg configuration. %s\n%d\n%s", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
+    	config_destroy(&cfg);
+	}
+
+	//Get all config settings from file and set variables accordingly.
+	 
+	config_lookup_string(&cfg,"general_settings.network_coding",&str);
+	printf("%d\n",*str);
+
 }
 
 /* main processing loop */
@@ -853,6 +879,10 @@ signal_handler(int signum)
 int
 main(int argc, char **argv)
 {
+	//Update config settings first from l2fwd-nc.cfg
+	//DD
+	update_settings();
+
 	struct lcore_queue_conf *qconf;
 	struct rte_eth_dev_info dev_info;
 	int ret;
