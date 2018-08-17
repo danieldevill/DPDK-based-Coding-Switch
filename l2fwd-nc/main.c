@@ -85,7 +85,7 @@
 
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
-#define MAC_ENTRIES 20
+static int MAC_ENTRIES = 20;
 #define STATIC 0
 #define DYNAMIC 1
 static unsigned mac_counter = 0;
@@ -96,18 +96,18 @@ struct mac_table_entry {
 	unsigned port;
 	unsigned coding_capable;
 };
-struct mac_table_entry mac_fwd_table[MAC_ENTRIES]; 
+struct mac_table_entry *mac_fwd_table; 
 
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
 static uint32_t packet_counter = 0;
-static int network_coding = 0; //Network coding disabled by default.
+static int network_coding; //Network coding disabled by default.
 
 //Kodo-c init:
 //Define num symbols and size.
 //Values are just selected from examples for now.
-#define MAX_SYMBOLS 10
-#define MAX_SYMBOL_SIZE 1400 //Size of MTU datatgram.
+static uint32_t MAX_SYMBOLS;
+static uint32_t MAX_SYMBOL_SIZE; //Size of MTU datatgram.
 //Select codec
 static uint32_t codec = kodoc_on_the_fly; //Sliding window can make use of feedback.
 //Finite field to use
@@ -131,9 +131,9 @@ static volatile bool force_quit;
 
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
-#define NB_MBUF 8192
+static int NB_MBUF;
 
-#define MAX_PKT_BURST 32
+static int MAX_PKT_BURST;
 
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
 #define MEMPOOL_CACHE_SIZE 256
@@ -141,10 +141,8 @@ static volatile bool force_quit;
 /*
  * Configurable number of RX/TX ring descriptors
  */
-#define RTE_TEST_RX_DESC_DEFAULT 128
-#define RTE_TEST_TX_DESC_DEFAULT 512
-static uint16_t nb_rxd = RTE_TEST_RX_DESC_DEFAULT;
-static uint16_t nb_txd = RTE_TEST_TX_DESC_DEFAULT;
+static uint16_t nb_rxd;
+static uint16_t nb_txd;
 
 /* ethernet addresses of ports */
 static struct ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
@@ -159,6 +157,7 @@ static unsigned int l2fwd_rx_queue_per_lcore = 1;
 
 #define MAX_RX_QUEUE_PER_LCORE 16
 #define MAX_TX_QUEUE_PER_PORT 16
+
 struct lcore_queue_conf {
 	unsigned n_rx_port;
 	unsigned rx_port_list[MAX_RX_QUEUE_PER_LCORE];
@@ -473,21 +472,64 @@ static void
 update_settings(void)
 {
 	config_t cfg;
-	//config_setting_t *setting;
-	const char *str;
+	int setting;
 
 	config_init(&cfg);
+
 	if(!config_read_file(&cfg,"l2fwd-nc.cfg")) //Read config file and display any errors.
 	{
 		printf("An error has occured with the l2fwd-nc.cfg configuration. %s\n%d\n%s", config_error_file(&cfg), config_error_line(&cfg), config_error_text(&cfg));
-    	config_destroy(&cfg);
+	}
+	else
+	{
+		//Get all config settings from file and set variables accordingly.
+		//General Settings
+		if(config_lookup_int(&cfg,"general_settings.network_coding",&setting))
+		{
+			network_coding = setting;
+		}
+		if(config_lookup_int(&cfg,"general_settings.MAC_ENTRIES",&setting))
+		{
+			mac_fwd_table = (struct mac_table_entry *)malloc(setting);
+			printf("Sizeof mac table%ld\n",sizeof(mac_fwd_table));
+		}
+		if(config_lookup_int(&cfg,"general_settings.NB_MBUF",&setting))
+		{
+			NB_MBUF = setting;
+		}
+		if(config_lookup_int(&cfg,"general_settings.MAX_PKT_BURST",&setting))
+		{
+			MAX_PKT_BURST = setting;
+		}
+		if(config_lookup_int(&cfg,"general_settings.RTE_TEST_RX_DESC_DEFAULT",&setting))
+		{
+			nb_rxd = setting;
+		}
+		if(config_lookup_int(&cfg,"general_settings.RTE_TEST_TX_DESC_DEFAULT",&setting))
+		{
+			nb_txd = setting;
+		}
+		//Network Coding Settings
+		if(config_lookup_int(&cfg,"network_coding_settings.MAX_SYMBOLS",&setting))
+		{
+			MAX_SYMBOLS = setting;
+		}
+		if(config_lookup_int(&cfg,"network_coding_settings.MAX_SYMBOL_SIZE",&setting))
+		{
+			MAX_SYMBOL_SIZE = setting;
+		}
+		/*if(config_lookup_int(&cfg,"network_coding_settings.codec",&setting))
+		{
+			printf("codec: %d\n",setting);
+		}
+		if(config_lookup_int(&cfg,"network_coding_settings.finite_field",&setting))
+		{
+			printf("finite_field: %d\n",setting);
+		}*/		
+
 	}
 
-	//Get all config settings from file and set variables accordingly.
-	 
-	config_lookup_string(&cfg,"general_settings.network_coding",&str);
-	printf("%d\n",*str);
-
+	config_destroy(&cfg);
 }
 
 /* main processing loop */
@@ -743,9 +785,6 @@ static const char short_options[] =
 	"T:"  /* timer period */
 	;
 
-#define CMD_LINE_OPT_NETWORK_CODING "network-coding"
-#define CMD_LINE_OPT_NO_NETWORK_CODING "no-network-coding"
-
 enum {
 	/* long options mapped to a short option */
 
@@ -755,8 +794,6 @@ enum {
 };
 
 static const struct option lgopts[] = {
-	{ CMD_LINE_OPT_NETWORK_CODING, no_argument, &network_coding, 1},
-	{ CMD_LINE_OPT_NO_NETWORK_CODING, no_argument, &network_coding, 0},
 	{NULL, 0, 0, 0}
 };
 
@@ -802,6 +839,10 @@ l2fwd_parse_args(int argc, char **argv)
 	if(network_coding== 1)
 	{
 		printf("Network Coding Enabled.\n");
+	}
+	else
+	{
+		printf("Network Coding Disabled\n");
 	}
 
 	ret = optind-1;
@@ -984,7 +1025,7 @@ main(int argc, char **argv)
 		ret = rte_eth_rx_queue_setup(portid, 0, nb_rxd,
 					     rte_eth_dev_socket_id(portid),
 					     NULL,
-					     l2fwd_pktmbuf_pool);
+					     l2fwd_pktmbuf_pool); //Flush here? DD.
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE, "rte_eth_rx_queue_setup:err=%d, port=%u\n",
 				  ret, portid);

@@ -25,7 +25,7 @@ dep_main.o = /home/switch0/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/stdint-intn.h \
  /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
- /home/switch0/l2fwd-nc/libconfig/lib/libconfig.h /usr/include/stdio.h \
+ /usr/include/libconfig.h /usr/include/stdio.h \
  /usr/include/x86_64-linux-gnu/bits/types/__FILE.h \
  /usr/include/x86_64-linux-gnu/bits/types/FILE.h /usr/include/libio.h \
  /usr/include/_G_config.h \

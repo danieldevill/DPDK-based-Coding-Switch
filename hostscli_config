@@ -58,7 +58,7 @@
       ratio = 0.5
       type = HPaned
     [[[terminal11]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_E.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:06 -net tap,vlan=0,ifname=deb5_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_E.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:06 -net tap,vlan=0,ifname=deb5_tap,script=no,downscript=no ; bash"
       order = 0
       parent = child10
       profile = default
@@ -66,7 +66,7 @@
       type = Terminal
       uuid = b63926d1-76df-4a50-a4d6-7caaefa1a498
     [[[terminal12]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_G.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:08 -net tap,vlan=0,ifname=deb7_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_G.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:08 -net tap,vlan=0,ifname=deb7_tap,script=no,downscript=no ; bash"
       order = 1
       parent = child10
       profile = default
@@ -74,7 +74,7 @@
       type = Terminal
       uuid = 725f7125-68b0-4b53-901b-013ab30f19db
     [[[terminal14]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_F.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:07 -net tap,vlan=0,ifname=deb6_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_F.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:07 -net tap,vlan=0,ifname=deb6_tap,script=no,downscript=no ; bash"
       order = 0
       parent = child13
       profile = default
@@ -82,7 +82,7 @@
       type = Terminal
       uuid = 08196b22-1a49-452a-9cfd-31ec9421545a
     [[[terminal15]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_H.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:09 -net tap,vlan=0,ifname=deb8_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_H.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:01:09 -net tap,vlan=0,ifname=deb8_tap,script=no,downscript=no ; bash"
       order = 1
       parent = child13
       profile = default
@@ -90,7 +90,7 @@
       type = Terminal
       uuid = 6e3eedec-8da9-45b0-a646-1eaf06bbaca2
     [[[terminal4]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_A.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:06 -net tap,vlan=0,ifname=deb1_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_A.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:06 -net tap,vlan=0,ifname=deb1_tap,script=no,downscript=no ; bash"
       order = 0
       parent = child3
       profile = default
@@ -98,7 +98,7 @@
       type = Terminal
       uuid = 1b74cd87-7f09-47dd-9e63-c983395010d2
     [[[terminal5]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_C.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:08 -net tap,vlan=0,ifname=deb3_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_C.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:08 -net tap,vlan=0,ifname=deb3_tap,script=no,downscript=no ; bash"
       order = 1
       parent = child3
       profile = default
@@ -106,7 +106,7 @@
       type = Terminal
       uuid = 20b54d39-4386-4be7-9b0a-bdc6b55fc5d6
     [[[terminal7]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_B.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:07 -net tap,vlan=0,ifname=deb2_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_B.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:07 -net tap,vlan=0,ifname=deb2_tap,script=no,downscript=no ; bash"
       order = 0
       parent = child6
       profile = default
@@ -114,7 +114,7 @@
       type = Terminal
       uuid = d63bb561-89e5-417a-a7d5-37e4fa3dc389
     [[[terminal8]]]
-      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_D.qcow2,if=virtio -boot c -accel kvm -m size=256M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:09 -net tap,vlan=0,ifname=deb4_tap,script=no,downscript=no ; bash"
+      command = "sudo qemu-system-x86_64 -display none -serial mon:stdio -echr 2 -drive file=vm-images/debian9_D.qcow2,if=virtio -boot c -accel kvm -m size=128M -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic -device e1000,vlan=0,mac=de:ad:be:ef:00:09 -net tap,vlan=0,ifname=deb4_tap,script=no,downscript=no ; bash"
       order = 1
       parent = child6
       profile = default

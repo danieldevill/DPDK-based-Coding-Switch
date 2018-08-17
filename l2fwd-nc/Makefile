@@ -45,9 +45,9 @@ APP = l2fwd
 SRCS-y := main.c
 
 # Add kodo headers and link to shared library. Also included libconfig library. DD.
-CFLAGS += -I/home/switch0/kodo-c/shared_kodoc/include -I/home/switch0/l2fwd-nc/libconfig/lib
+CFLAGS += -I/home/switch0/kodo-c/shared_kodoc/include
 # List of libraries to link with
-LDLIBS += -L/home/switch0/kodo-c/shared_kodoc -Bdynamic -lkodoc -lstdc++ -rpath=/home/switch0/kodo-c/shared_kodoc -L/home/switch0/l2fwd-nc/libconfig/ -lconfig -rpath=/home/switch0/l2fwd-nc/libconfig/lib
+LDLIBS += -L/home/switch0/kodo-c/shared_kodoc -Bdynamic -lkodoc -lstdc++ -rpath=/home/switch0/kodo-c/shared_kodoc -lconfig
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)

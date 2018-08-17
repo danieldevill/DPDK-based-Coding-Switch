@@ -11,6 +11,9 @@
 
     <title>DPDK-based-Coding-Switch - Tables</title>
 
+    <!--JQuery-->
+    <script src="vendor/jquery/jquery.min.js"></script>
+
     <!-- Bootstrap core CSS-->
     <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
 
@@ -22,6 +25,9 @@
 
     <!-- Custom styles for this template-->
     <link href="css/sb-admin.css" rel="stylesheet">
+
+    <!--Import defined JS scripts-->
+    <script src="helper.js"></script>>
 
   </head>
 
@@ -129,23 +135,7 @@
                   <input id="rte_test_tx_desc_default" name="rte_test_tx_desc_default" type="text" placeholder="512" class="form-control input-md">
                 </div>
               </div>
-
-              <!-- Text input-->
-              <div class="form-group">
-                <label class="col-md-12 control-label" for="max_rx_queue_per_lcore">MAX_RX_QUEUE_PER_LCORE</label>  
-                <div class="col-md-12">
-                  <input id="max_rx_queue_per_lcore" name="max_rx_queue_per_lcore" type="text" placeholder="16" class="form-control input-md">
-                </div>
-              </div>
-
-              <!-- Text input-->
-              <div class="form-group">
-                <label class="col-md-12 control-label" for="max_tx_queue_per_port">MAX_TX_QUEUE_PER_PORT</label>  
-                <div class="col-md-12">
-                  <input id="max_tx_queue_per_port" name="max_tx_queue_per_port" type="text" placeholder="16" class="form-control input-md">
-                </div>
-              </div>
-
+              
             </div>
             <!-- /.container-fluid -->
 
