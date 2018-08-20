@@ -8,6 +8,10 @@
 	{
 		getSettings();
 	}
+	if($_POST["func"] == "setSettings")
+	{
+		setSettings($_POST["cfg"]);
+	}
 
 	function reboot() //Sets a reboot flag for a cron to read and then do the reboot.
 	{
@@ -18,11 +22,18 @@
 
 	function getSettings() //Gets value of all settings from file.
 	{
-		$cfgfile = fopen("/tmp/rbootflg",'r');_
-		while(!feof($cfgfile))
-		{
-			echo(fgets($cfgfile) . "<br>");
-		}
+		$cfgfile = fopen("/home/switch/l2fwd-nc/l2fwd-nc.cfg",'r');
+		
+		echo(fread($cfgfile,filesize("/home/switch/l2fwd-nc/l2fwd-nc.cfg")));
+
+		fclose($cfgfile);
+	}
+
+	function setSettings(string $cfg)
+	{
+		echo($cfg);
+		$cfgfile = fopen("/home/switch/l2fwd-nc/l2fwd-nc_temp.cfg",'w');
+		fwrite($cfgfile,$cfg);
 		fclose($cfgfile);
 	}
 

@@ -83,13 +83,13 @@
                 <div class="col-md-12">
                   <div class="radio">
                     <label for="coding_enabled-0">
-                      <input type="radio" name="coding_enabled" id="coding_enabled-0" value="0">
+                      <input type="radio" name="coding_enabled" id="network_coding-1" value="1">
                       Yes
                     </label>
                   </div>
                   <div class="radio">
                     <label for="coding_enabled-1">
-                      <input type="radio" name="coding_enabled" id="coding_enabled-1" value="1">
+                      <input type="radio" name="coding_enabled" id="network_coding-0" value="2">
                       No
                     </label>
                   </div>
@@ -100,7 +100,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="mac_entries">MAC_ENTRIES</label> 
                 <div class="col-md-12">
-                  <input id="mac_entries" name="mac_entries" type="text" placeholder="20" class="form-control input-md">
+                  <input id="mac_entries" name="mac_entries" type="text" class="form-control input-md">
                 </div>
               </div>
 
@@ -108,7 +108,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="nb_mbuf">NB_MBUF</label>  
                 <div class="col-md-12">
-                  <input id="nb_mbuf" name="nb_mbuf" type="text" placeholder="8192" class="form-control input-md">
+                  <input id="nb_mbuf" name="nb_mbuf" type="text" class="form-control input-md">
                 </div>
               </div>
 
@@ -116,7 +116,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="max_pkt_burst">MAX_PKT_BURST</label>  
                 <div class="col-md-12">
-                  <input id="max_pkt_burst" name="max_pkt_burst" type="text" placeholder="32" class="form-control input-md">
+                  <input id="max_pkt_burst" name="max_pkt_burst" type="text" class="form-control input-md">
                 </div>
               </div>
 
@@ -124,7 +124,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="rte_test_rx_desc_default">RTE_TEST_RX_DESC_DEFAULT</label>  
                 <div class="col-md-12">
-                  <input id="rte_test_rx_desc_default" name="rte_test_rx_desc_default" type="text" placeholder="128" class="form-control input-md">
+                  <input id="rte_test_rx_desc_default" name="rte_test_rx_desc_default" type="text" class="form-control input-md">
                 </div>
               </div>
 
@@ -132,7 +132,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="rte_test_tx_desc_default">RTE_TEST_TX_DESC_DEFAULT</label>  
                 <div class="col-md-12">
-                  <input id="rte_test_tx_desc_default" name="rte_test_tx_desc_default" type="text" placeholder="512" class="form-control input-md">
+                  <input id="rte_test_tx_desc_default" name="rte_test_tx_desc_default" type="text" class="form-control input-md">
                 </div>
               </div>
               
@@ -158,19 +158,19 @@
                 <div class="col-md-12">
                 <div class="radio">
                   <label for="codec_select-0">
-                    <input type="radio" name="codec_select" id="codec_select-0" value="kodoc_full_vector">
+                    <input type="radio" name="codec_select" id="codec-kodoc_full_vector" value="kodoc_full_vector">
                     Full vector
                   </label>
                 </div>
                 <div class="radio">
                   <label for="codec_select-1">
-                    <input type="radio" name="codec_select" id="codec_select-1" value="kodoc_on_the_fly">
+                    <input type="radio" name="codec_select" id="codec-kodoc_on_the_fly" value="kodoc_on_the_fly">
                     On the fly
                   </label>
                 </div>
                 <div class="radio">
                   <label for="codec_select-2">
-                    <input type="radio" name="codec_select" id="codec_select-2" value="kodoc_sliding_window">
+                    <input type="radio" name="codec_select" id="codec-kodoc_sliding_window" value="kodoc_sliding_window">
                     Sliding window
                   </label>
                 </div>
@@ -183,19 +183,19 @@
                 <div class="col-md-12">
                 <div class="radio">
                   <label for="field_select-0">
-                    <input type="radio" name="field_select" id="field_select-0" value="kodoc_binary">
+                    <input type="radio" name="field_select" id="finite_field-kodoc_binary" value="kodoc_binary">
                     Binary
                   </label>
                 </div>
                 <div class="radio">
                   <label for="field_select-1">
-                    <input type="radio" name="field_select" id="field_select-1" value="kodoc_binary4">
+                    <input type="radio" name="field_select" id="finite_field-kodoc_binary4" value="kodoc_binary4">
                     Binary4
                   </label>
                 </div>
                 <div class="radio">
                   <label for="field_select-2">
-                    <input type="radio" name="field_select" id="field_select-2" value="kodoc_binary8">
+                    <input type="radio" name="field_select" id="finite_field-kodoc_binary8" value="kodoc_binary8">
                     Binary8
                   </label>
                 </div>
@@ -204,9 +204,9 @@
 
               <!-- Text input-->
               <div class="form-group">
-                <label class="col-md-12 control-label" for="max_sysmbols">MAX_SYMBOLS</label>  
+                <label class="col-md-12 control-label" for="max_symbols">MAX_SYMBOLS</label>  
                 <div class="col-md-12">
-                  <input id="max_sysmbols" name="max_sysmbols" type="text" placeholder="10" class="form-control input-md"> 
+                  <input id="max_symbols" name="max_symbols" type="text" class="form-control input-md"> 
                 </div>
               </div>
 
@@ -214,7 +214,7 @@
               <div class="form-group">
                 <label class="col-md-12 control-label" for="max_symbol_size">MAX_SYMBOL_SIZE</label>  
                 <div class="col-md-12">
-                  <input id="max_symbol_size" name="max_symbol_size" type="text" placeholder="1400" class="form-control input-md"> 
+                  <input id="max_symbol_size" name="max_symbol_size" type="text" class="form-control input-md"> 
                 </div>
               </div>
 
@@ -222,7 +222,7 @@
             <!-- /.container-fluid -->
 
             <div class="col-sm-12">
-              <button type="button" class="btn btn-primary btn-block">Update and Reboot</button>
+              <button id="btn_update_and_reboot" type="button" class="btn btn-primary btn-block">Update and Reboot</button>
             </div>  <br><br>
 
             <!-- Sticky Footer -->

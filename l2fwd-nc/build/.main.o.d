@@ -1,4 +1,4 @@
-dep_main.o = /home/switch0/l2fwd-nc/main.c /usr/include/stdc-predef.h \
+dep_main.o = /home/switch/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_config.h \
  /usr/include/time.h /usr/include/features.h \
  /usr/include/x86_64-linux-gnu/sys/cdefs.h \
@@ -19,7 +19,7 @@ dep_main.o = /home/switch0/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
  /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
  /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
- /home/switch0/kodo-c/shared_kodoc/include/kodoc/kodoc.h \
+ /home/switch/kodo-c/shared_kodoc/include/kodoc/kodoc.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
@@ -219,4 +219,4 @@ dep_main.o = /home/switch0/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_ether.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_eth_ctrl.h \
  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/include/rte_dev_info.h \
- /home/switch0/l2fwd-nc/main.h
+ /home/switch/l2fwd-nc/main.h
