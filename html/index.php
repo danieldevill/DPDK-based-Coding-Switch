@@ -72,7 +72,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-download"></i>
                   </div>
-                  <div class="mr-5">Rx</div>
+                  <div class="mr-5"><h6 id="rx">Rx:</h6></div>
                 </div>
               </div>
             </div>
@@ -82,7 +82,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-upload"></i>
                   </div>
-                  <div class="mr-5">Tx</div>
+                  <div id="tx" class="mr-5">Tx</div>
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-microchip"></i>
                   </div>
-                  <div class="mr-5">CPU and Memory usage:</div>
+                  <div id="cpu_mem_info" class="mr-5">CPU and Memory usage:</div>
                 </div>
               </div>
             </div>
@@ -102,7 +102,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-history"></i>
                   </div>
-                  <div class="mr-5">Time active</div>
+                  <div id="time_active" class="mr-5">Uptime:</div>
                 </div>
               </div>
             </div>

@@ -1,17 +1,35 @@
 $(document).ready(function() 
 {
-	$("#btn_reboot").click(function(e)
-	{	
-		e.preventDefault(); //Prevent a form from being submitted.
+	if($("#" + "cpu_mem_info").length != 0) //Check if in index.php by looking for an ID that only exists in index.php
+	{
+		$("#btn_reboot").click(function(e)
+		{	
+			e.preventDefault(); //Prevent a form from being submitted.
+			$.ajax({
+				url: 'utilities.php',
+				type: 'POST',
+				data: {'func': 'reboot'},
+				success: function(data) {
+					$('#btn_reboot').html('Rebooting..'); 
+					setTimeout(function(){location.reload()},20000);
+				}
+			});
+		});
+
 		$.ajax({
 			url: 'utilities.php',
 			type: 'POST',
-			data: {'func': 'reboot'},
-			success: function(data) {
-				$('#btn_reboot').html('Rebooting..'); 
+			data: {'func': 'getStats'},
+			success: function(data) { 
+				//Get Stats and populate cards approprietly.
+				alert(data);
+				setting_name = "RX";
+				var setting_value = data.substring((data.search(setting_name)+setting_name.length+1),data.indexOf(";",data.indexOf(setting_name)));
+				alert(setting_value);
+				$('#'+setting_name.toLowerCase()).val(setting_value);
 			}
 		});
-	});
+	}
 
 	if($("#" + "mac_entries").length != 0) //Check if in settings.php by looking for a ID that only exists in settings.php
 	{
@@ -46,7 +64,7 @@ $(document).ready(function()
 		});
 
 		//Update config and reboot
-		$("#btn_update_and_reboot").click(function(e)
+		$("#btn_update_and_relaunch").click(function(e)
 		{	
 			$.ajax({
 				url: 'utilities.php',
@@ -85,7 +103,7 @@ $(document).ready(function()
 								var codec_value = codec_values[codec_values_index];
 								if($('#'+setting_name+'-'+codec_value).is(":checked"))
 								{
-									setting_value = codec_value;
+									setting_value = '\"'+codec_value+'\"';
 								}
 							}
 						}
@@ -97,7 +115,7 @@ $(document).ready(function()
 								var field_value = field_values[field_values_index];
 								if($('#'+setting_name+'-'+field_value).is(":checked"))
 								{
-									setting_value = field_value;
+									setting_value = '\"'+field_value+'\"';
 								}
 							}
 						}
@@ -111,25 +129,24 @@ $(document).ready(function()
 							   'cfg': new_cfg
 						},
 						success: function(data) { 
-							alert(data);
+							//Reboot switch.
+							e.preventDefault(); //Prevent a form from being submitted.
+							$.ajax({
+								url: 'utilities.php',
+								type: 'POST',
+								data: {'func': 'relaunch'},
+								success: function(data) {
+									$('#btn_update_and_relaunch').html('Changes saved. Relaunching..'); 
+									setTimeout(function(){location.reload()},4000);
+								}
+							});
 						}
 					});
-
 				}
 			});
 
-
-			//Reboot switch.
-/*			e.preventDefault(); //Prevent a form from being submitted.
-			$.ajax({
-				url: 'utilities.php',
-				type: 'POST',
-				data: {'func': 'reboot'},
-				success: function(data) {
-					$('#btn_update_and_reboot').html('Changes saved. Rebooting..'); 
-				}
-			});*/
 		});
 	}
+
 
 });

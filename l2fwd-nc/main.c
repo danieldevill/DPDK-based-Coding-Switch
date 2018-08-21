@@ -100,7 +100,7 @@ struct mac_table_entry *mac_fwd_table;
 
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
-static uint32_t packet_counter = 0;
+static uint32_t nb_tx_total = 0;
 static int network_coding; //Network coding disabled by default.
 
 //Kodo-c init:
@@ -142,7 +142,7 @@ static int MAX_PKT_BURST;
  * Configurable number of RX/TX ring descriptors
  */
 static uint16_t nb_rxd;
-static uint16_t nb_txd;
+static uint16_t nb_tx_totald;
 
 /* ethernet addresses of ports */
 static struct ether_addr l2fwd_ports_eth_addr[RTE_MAX_ETHPORTS];
@@ -217,7 +217,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 			buffer = tx_buffer[mac_fwd_table[i].port];
 			mac_dst_found = 1;
 			rte_eth_tx_buffer(mac_fwd_table[i].port, 0, buffer, m);
-			packet_counter++;
+			nb_tx_total++;
 		}
 	}
 	if(mac_dst_found == 0) //Flood the packet out to all ports
@@ -230,7 +230,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 				rte_eth_tx_buffer(port, 0, buffer, m);
 			}
 		}
-        packet_counter = packet_counter+3;
+        nb_tx_total = nb_tx_total+3;
 	}
 	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
 	{
@@ -254,9 +254,6 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 			}
 		}
 	}
-	//Display number of packets sent.
-	//printf(" packets forwarded. \r%u", packet_counter);
-	//fflush(stdout);
 }
 
 static void 
@@ -435,7 +432,7 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 static void
 net_recode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *encoder, kodoc_coder_t *decoder)
 {
-	printf("%ld %ld %ld %ld\n",sizeof(m), sizeof(portid),sizeof(encoder),sizeof(decoder) );
+	printf("%ld %ld %ld %ld\n",sizeof(m), sizeof(portid),sizeof(encoder),sizeof(decoder));
 }
 
 static void 
@@ -507,7 +504,7 @@ update_settings(void)
 		}
 		if(config_lookup_int(&cfg,"general_settings.RTE_TEST_TX_DESC_DEFAULT",&setting))
 		{
-			nb_txd = setting;
+			nb_tx_totald = setting;
 		}
 		//Network Coding Settings
 		if(config_lookup_int(&cfg,"network_coding_settings.MAX_SYMBOLS",&setting))
@@ -541,6 +538,7 @@ l2fwd_main_loop(void)
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
+	int nb_rx_total = 0;
 	struct lcore_queue_conf *qconf;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S *
 			BURST_TX_DRAIN_US;
@@ -708,6 +706,16 @@ l2fwd_main_loop(void)
 				{
 					l2fwd_learning_forward(m, portid);
 				}
+			}
+			//Increment Received Packets
+			if(nb_rx != 0)
+			{
+				nb_rx_total = nb_rx_total + (int)nb_rx;
+				//Print stats to txt file. RX,TX,and Time Active.
+				FILE *txrx_stats;
+				txrx_stats = fopen("txrx.stats","r+");
+				fprintf(txrx_stats,"RX:%d;\nTX:%d;",nb_rx_total,nb_tx_total);
+				fclose(txrx_stats);		
 			}
 		}
 	}
@@ -1012,7 +1020,7 @@ main(int argc, char **argv)
 				  ret, portid);
 
 		ret = rte_eth_dev_adjust_nb_rx_tx_desc(portid, &nb_rxd,
-						       &nb_txd);
+						       &nb_tx_totald);
 		if (ret < 0)
 			rte_exit(EXIT_FAILURE,
 				 "Cannot adjust number of descriptors: err=%d, port=%u\n",
@@ -1032,7 +1040,7 @@ main(int argc, char **argv)
 
 		/* init one TX queue on each port */
 		fflush(stdout);
-		ret = rte_eth_tx_queue_setup(portid, 0, nb_txd,
+		ret = rte_eth_tx_queue_setup(portid, 0, nb_tx_totald,
 				rte_eth_dev_socket_id(portid),
 				NULL);
 		if (ret < 0)

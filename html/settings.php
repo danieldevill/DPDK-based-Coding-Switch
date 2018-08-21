@@ -222,7 +222,7 @@
             <!-- /.container-fluid -->
 
             <div class="col-sm-12">
-              <button id="btn_update_and_reboot" type="button" class="btn btn-primary btn-block">Update and Reboot</button>
+              <button id="btn_update_and_relaunch" type="button" class="btn btn-primary btn-block">Update and Relaunch DPDK Switch</button>
             </div>  <br><br>
 
             <!-- Sticky Footer -->
