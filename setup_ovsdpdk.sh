@@ -52,3 +52,5 @@ sudo /usr/src/dpdk-stable-17.11.1/usertools/dpdk-devbind.py -s
 
 #Print number of Hugepages
 grep Huge /proc/meminfo
+
+#Check if Crontabs are all setup
