@@ -72,7 +72,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-download"></i>
                   </div>
-                  <div class="mr-5"><h6 id="rx">Rx:</h6></div>
+                  <div class="mr-5"><h6 id="rx">rx: 0</h6></div>
                 </div>
               </div>
             </div>
@@ -82,7 +82,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-upload"></i>
                   </div>
-                  <div id="tx" class="mr-5">Tx</div>
+                  <div id="tx" class="mr-5">tx: 0</div>
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-microchip"></i>
                   </div>
-                  <div id="cpu_mem_info" class="mr-5">CPU and Memory usage:</div>
+                  <div id="cpu_mem_info" class="mr-5"><h10 id="cpuinfo">CPU:</h10><br><h9 id="meminfo">RAM:</h9></div>
                 </div>
               </div>
             </div>
@@ -102,27 +102,30 @@
                   <div class="card-body-icon">
                     <i class="fas fa-fw fa-history"></i>
                   </div>
-                  <div id="time_active" class="mr-5">Uptime:</div>
+                  <div class="mr-5"><h6 id="uptime">uptime: </h6></div>
                 </div>
               </div>
             </div>
           </div>
 
-          <table class="table">
+          <table id="link_table" class="table">
             <thead>
               <tr>
-                <th scope="col">PORT</th>
-                <th scope="col">STATUS</th>
-                <th scope="col">IPv4 Address</th>
+                <th scope="col">Port</th>
                 <th scope="col">MAC Address</th>
+                <th scope="col">Link Speed</th>
+                <th scope="col">Link Duplex</th>
+                <th scope="col">Link Status</th>
+                <th scope="col">Rx (Pkts)</th>
+                <th scope="col">Tx (Pkts)</th>
+                <th scope="col">Rx (Bytes)</th>
+                <th scope="col">Tx (Bytes)</th>
+                <th scope="col">Rx (Err)</th>
+                <th scope="col">Tx (Err)</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>0</td>
-                <td>DOWN</td>
-                <td>192.168.1.8</td>
-                <td>DE:AD:BE:EF:00:02</td>
               </tr>
             </tbody>
           </table>

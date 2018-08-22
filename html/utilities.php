@@ -20,6 +20,14 @@
 	{
 		getStats();
 	}
+	if($_POST["func"] == "getSystemStats")
+	{
+		getSystemStats();
+	}
+		if($_POST["func"] == "getLinkStats")
+	{
+		getLinkStats();
+	}
 
 	function reboot() //Sets a reboot flag for a cron to read and then do the reboot.
 	{
@@ -54,6 +62,29 @@
 		$statsfile = fopen("/home/switch/l2fwd-nc/txrx.stats",'r');
 		echo(fread($statsfile,filesize("/home/switch/l2fwd-nc/txrx.stats")));
 		fclose($statsfile);
+	}
+
+	function getSystemStats() //Gets stats on rx,tx,cpu/mem info and uptime.
+	{
+		$timefile = fopen("/home/switch/l2fwd-nc/start.time",'r');
+		echo(fread($timefile,filesize("/home/switch/l2fwd-nc/start.time")));
+		fclose($timefile);
+		//Get CPU load average.
+		$load = sys_getloadavg();
+		echo(";\n+cpuload: ". $load[0] . ";");
+		//Get Memory Info.
+		echo("\n");
+		$meminfo = fopen("/proc/meminfo",'r');
+		echo(fread($meminfo,100)); //Just read top bit of meminfo
+		fclose($meminfo);
+		echo("end.");
+	}
+
+	function getLinkStats() //get stats on all port links.
+	{
+		$linkstatsfile = fopen("/home/switch/l2fwd-nc/link.stats",'r');
+		echo(fread($linkstatsfile,filesize("/home/switch/l2fwd-nc/link.stats")));
+		fclose($linkstatsfile);
 	}
 
 ?>

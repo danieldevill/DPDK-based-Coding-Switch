@@ -101,7 +101,10 @@ struct mac_table_entry *mac_fwd_table;
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
 static uint32_t nb_tx_total = 0;
-static int network_coding; //Network coding disabled by default.
+static int network_coding;
+//Link Sats
+static struct rte_eth_link l2fwd_nc_links[RTE_MAX_ETHPORTS];
+static struct rte_eth_stats l2fwd_nc_dev_stats[RTE_MAX_ETHPORTS]; 
 
 //Kodo-c init:
 //Define num symbols and size.
@@ -119,9 +122,6 @@ static uint8_t* data_out;
 static struct rte_mbuf** encoding_buffer;
 //Decoding buffers.
 static struct rte_mbuf** decoding_buffer;
-//Stats counter
-//static uint32_t packets_nodrop = 0;
-//static uint32_t packets_drop = 0;
 
 static volatile bool force_quit;
 
@@ -718,6 +718,42 @@ l2fwd_main_loop(void)
 				fclose(txrx_stats);		
 			}
 		}
+
+		//Write stats on each link to a file.
+		FILE *link_stats;
+		int nb_devs = rte_eth_dev_count();
+		link_stats = fopen("link.stats","r+");
+		for(int port_id =0;port_id<nb_devs;port_id++) //Print stats for each dev
+		{
+			fprintf(link_stats,"port:%u;mac_address:%02X:%02X:%02X:%02X:%02X:%02X;",
+					port_id,
+					l2fwd_ports_eth_addr[port_id].addr_bytes[0],
+					l2fwd_ports_eth_addr[port_id].addr_bytes[1],
+					l2fwd_ports_eth_addr[port_id].addr_bytes[2],
+					l2fwd_ports_eth_addr[port_id].addr_bytes[3],
+					l2fwd_ports_eth_addr[port_id].addr_bytes[4],
+					l2fwd_ports_eth_addr[port_id].addr_bytes[5]);
+			
+			rte_eth_link_get_nowait(port_id,&l2fwd_nc_links[port_id]); //Nowait version way faster, no details on one vs the other however. 
+
+			fprintf(link_stats,"link_speed:%d;link_duplex:%d;link_status:%d;",
+					l2fwd_nc_links[port_id].link_speed,
+					l2fwd_nc_links[port_id].link_duplex,
+					l2fwd_nc_links[port_id].link_status);
+
+			rte_eth_stats_get(port_id,&l2fwd_nc_dev_stats[port_id]);
+
+			fprintf(link_stats,"ipackets:%ld;opackets:%ld;ibytes:%ld;obytes:%ld;ierrors:%ld;oerrors:%ld;",
+					l2fwd_nc_dev_stats[port_id].ipackets,
+					l2fwd_nc_dev_stats[port_id].opackets,
+					l2fwd_nc_dev_stats[port_id].ibytes,
+					l2fwd_nc_dev_stats[port_id].obytes,
+					l2fwd_nc_dev_stats[port_id].ierrors,
+					l2fwd_nc_dev_stats[port_id].oerrors);
+	
+			fprintf(link_stats,"\n");
+		}
+		fclose(link_stats);
 	}
 
 	//Cleanup after network coding
@@ -931,6 +967,11 @@ main(int argc, char **argv)
 	//Update config settings first from l2fwd-nc.cfg
 	//DD
 	update_settings();
+	//Print start_time to file.
+	FILE *start_time;
+	start_time = fopen("start.time","r+");
+	fprintf(start_time,"%ld",time(NULL));
+	fclose(start_time);	
 
 	struct lcore_queue_conf *qconf;
 	struct rte_eth_dev_info dev_info;
