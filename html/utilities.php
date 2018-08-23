@@ -16,17 +16,17 @@
 	{
 		setSettings($_POST["cfg"]);
 	}
-	if($_POST["func"] == "getStats")
-	{
-		getStats();
-	}
 	if($_POST["func"] == "getSystemStats")
 	{
 		getSystemStats();
 	}
-		if($_POST["func"] == "getLinkStats")
+	if($_POST["func"] == "getLinkStats")
 	{
 		getLinkStats();
+	}
+	if($_POST["func"] == "isSwitchOn")
+	{
+		isSwitchOn();
 	}
 
 	function reboot() //Sets a reboot flag for a cron to read and then do the reboot.
@@ -57,13 +57,6 @@
 		fclose($cfgfile);
 	}
 
-	function getStats() //Gets stats on rx,tx,cpu/mem info and uptime.
-	{
-		$statsfile = fopen("/home/switch/l2fwd-nc/txrx.stats",'r');
-		echo(fread($statsfile,filesize("/home/switch/l2fwd-nc/txrx.stats")));
-		fclose($statsfile);
-	}
-
 	function getSystemStats() //Gets stats on rx,tx,cpu/mem info and uptime.
 	{
 		$timefile = fopen("/home/switch/l2fwd-nc/start.time",'r');
@@ -85,6 +78,19 @@
 		$linkstatsfile = fopen("/home/switch/l2fwd-nc/link.stats",'r');
 		echo(fread($linkstatsfile,filesize("/home/switch/l2fwd-nc/link.stats")));
 		fclose($linkstatsfile);
+	}
+
+	function isSwitchOn() //Returns 1 if the switch is on, else 0.
+	{
+		exec("pidof l2fwd",$output);
+		if(file_exists('/proc/'.$output[0]) and $output[0] != null)
+		{
+			echo("1");
+		}
+		else
+		{
+			echo("0");
+		}
 	}
 
 ?>

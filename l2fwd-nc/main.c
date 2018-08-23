@@ -538,7 +538,6 @@ l2fwd_main_loop(void)
 	unsigned lcore_id;
 	uint64_t prev_tsc, diff_tsc, cur_tsc, timer_tsc;
 	unsigned i, j, portid, nb_rx;
-	int nb_rx_total = 0;
 	struct lcore_queue_conf *qconf;
 	const uint64_t drain_tsc = (rte_get_tsc_hz() + US_PER_S - 1) / US_PER_S *
 			BURST_TX_DRAIN_US;
@@ -706,16 +705,6 @@ l2fwd_main_loop(void)
 				{
 					l2fwd_learning_forward(m, portid);
 				}
-			}
-			//Increment Received Packets
-			if(nb_rx != 0)
-			{
-				nb_rx_total = nb_rx_total + (int)nb_rx;
-				//Print stats to txt file. RX,TX,and Time Active.
-				FILE *txrx_stats;
-				txrx_stats = fopen("txrx.stats","r+");
-				fprintf(txrx_stats,"RX:%d;\nTX:%d;",nb_rx_total,nb_tx_total);
-				fclose(txrx_stats);		
 			}
 		}
 
