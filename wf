@@ -10,9 +10,9 @@ echo "Interfaces up!" &&
 #Start qemu debian vm image (Switch0)
 sudo qemu-system-x86_64 vm-images/switch0.qcow2 \
 -accel kvm -display none \
--m size=6G \
+-m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
--smp 8 -numa node,nodeid=0  \
+-smp 6 -numa node,nodeid=0  \
 -device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22,hostfwd=tcp::10080-:80 \
 -device e1000,vlan=1,mac=de:ad:be:ef:00:02 \
 -net tap,name=net2,vlan=1,ifname=sw_tap1,script=no,downscript=no \
@@ -30,9 +30,9 @@ sleep 5
 #Start qemu debian vm image (Switch1)
 sudo qemu-system-x86_64 vm-images/switch1.qcow2 \
 -accel kvm -display none \
--m size=6G \
+-m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
--smp 8 -numa node,nodeid=0  \
+-smp 6 -numa node,nodeid=0  \
 -device e1000,vlan=6 -net user,name=net7,vlan=6,hostfwd=tcp::10023-:22 \
 -device e1000,vlan=7,mac=de:ad:be:ef:01:02 \
 -net tap,name=net8,vlan=7,ifname=sw_tap5,script=no,downscript=no \
