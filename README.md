@@ -11,5 +11,7 @@ A network coding capable switch implemented using Intel's DPDK framework.
 
 ## Dependencies:
 	* libconfig-dev
+	* uml-utilities (For vm network topology setup)
+	* bridge-utils (For vm network topology setup)
 
 

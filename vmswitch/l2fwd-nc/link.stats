@@ -1,0 +1,8 @@
+port:0;mac_address:DE:AD:BE:EF:00:02;link_speed:1000;link_duplex:1;link_status:1;ipackets:22;opackets:185;ibytes:1570;obytes:12110;ierrors:16;oerrors:0;
+port:1;mac_address:DE:AD:BE:EF:00:03;link_speed:1000;link_duplex:1;link_status:1;ipackets:18;opackets:189;ibytes:1314;obytes:13390;ierrors:12;oerrors:0;
+port:2;mac_address:DE:AD:BE:EF:00:04;link_speed:1000;link_duplex:1;link_status:1;ipackets:16;opackets:169;ibytes:1034;obytes:10988;ierrors:15;oerrors:0;
+port:3;mac_address:DE:AD:BE:EF:00:05;link_speed:1000;link_duplex:1;link_status:1;ipackets:17;opackets:181;ibytes:1108;obytes:11708;ierrors:15;oerrors:0;
+port:4;mac_address:DE:AD:BE:EF:11:00;link_speed:1000;link_duplex:1;link_status:1;ipackets:134;opackets:64;ibytes:9394;obytes:3890;ierrors:109;oerrors:0;
+:196105;ierrors:750;oerrors:0;
+rs:0;
+0;

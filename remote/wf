@@ -1,0 +1,56 @@
+#!/bin/bash
+
+#DPDK-based coding switch workflow setup script.
+
+
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifup' &&
+
+echo "Interfaces up!" &&
+
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/switch0.qcow2 \
+-accel kvm -display none \
+-m size=1G \
+-cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
+-smp 6 -numa node,nodeid=0  \
+-device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22,hostfwd=tcp::10080-:80 \
+-device e1000,vlan=1,mac=de:ad:be:ef:00:02 \
+-net tap,name=net2,vlan=1,ifname=sw_tap1,script=no,downscript=no \
+-device e1000,vlan=2,mac=de:ad:be:ef:00:03 \
+-net tap,name=net3,vlan=2,ifname=sw_tap2,script=no,downscript=no \
+-device e1000,vlan=3,mac=de:ad:be:ef:00:04 \
+-net tap,name=net4,vlan=3,ifname=sw_tap3,script=no,downscript=no \
+-device e1000,vlan=4,mac=de:ad:be:ef:00:05 \
+-net tap,name=net5,vlan=4,ifname=sw_tap4,script=no,downscript=no \
+-device e1000,vlan=5,mac=de:ad:be:ef:11:00 \
+-net tap,name=net6,vlan=5,ifname=sw_sw_tap0,script=no,downscript=no' &
+
+sleep 5
+
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/switch1.qcow2 \
+-accel kvm -display none \
+-m size=1G \
+-cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
+-smp 6 -numa node,nodeid=0  \
+-device e1000,vlan=6 -net user,name=net7,vlan=6,hostfwd=tcp::10023-:22,hostfwd=tcp::20080-:80 \
+-device e1000,vlan=7,mac=de:ad:be:ef:01:02 \
+-net tap,name=net8,vlan=7,ifname=sw_tap5,script=no,downscript=no \
+-device e1000,vlan=8,mac=de:ad:be:ef:01:03 \
+-net tap,name=net9,vlan=8,ifname=sw_tap6,script=no,downscript=no \
+-device e1000,vlan=9,mac=de:ad:be:ef:01:04 \
+-net tap,name=net10,vlan=9,ifname=sw_tap7,script=no,downscript=no \
+-device e1000,vlan=10,mac=de:ad:be:ef:01:05 \
+-net tap,name=net11,vlan=10,ifname=sw_tap8,script=no,downscript=no \
+-device e1000,vlan=11,mac=de:ad:be:ef:11:11 \
+-net tap,name=net12,vlan=11,ifname=sw_swtap1,script=no,downscript=no' &
+
+sleep 5
+
+terminator -g swcli_config &
+
+sleep 5
+
+sudo terminator -g hostscli_config ;
+
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S pkill -f qemu-system-x86_64' ;
+	
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifdown'

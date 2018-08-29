@@ -1,0 +1,25 @@
+site_name: 'Libconfig'
+site_url: 'libconfig.docs.9dev.de'
+repo_url: 'https://github.com/Radiergummi/libconfig/'
+
+repo_name: null
+site_description: null
+site_author: null
+site_favicon: null
+copyright: null
+
+#google_analytics: ['UA-36723568-3', 'mkdocs.org']
+
+pages:
+- ['index.md', 'Introduction']
+- ['usage/setup.md', 'Usage', 'Setup libconfig']
+- ['usage/advanced.md', 'Usage', 'Advanced usage']
+- ['usage/exceptions.md', 'Usage', 'Exception handling']
+- ['reference/methods.md', 'Reference', 'Methods']
+- ['reference/magic_methods.md', 'Reference', 'Magic Methods']
+- ['reference/interfaces.md', 'Reference', 'Interfaces']
+- ['about/license.md', 'About', 'License']
+# theme: 'mkdocs'
+theme_dir: 'docs/theme/9dev'
+docs_dir: 'docs/content'
+site_dir: 'docs/public'
