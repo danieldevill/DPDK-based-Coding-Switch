@@ -14,4 +14,7 @@ A network coding capable switch implemented using Intel's DPDK framework.
 	* uml-utilities (For vm network topology setup)
 	* bridge-utils (For vm network topology setup)
 
+## Notes:
+	* The switch vm might have to have the kernel recompiled based on the cpu type.
+
 
