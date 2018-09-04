@@ -224,13 +224,14 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 	{
 		for (uint port = 0; port < rte_eth_dev_count(); port++)
 		{
+			printf("Sent out of Port: %d\n", port);
 			if(port!=portid)
 			{
 				buffer = tx_buffer[port];
 				rte_eth_tx_buffer(port, 0, buffer, m);
+				nb_tx_total++;
 			}
 		}
-        nb_tx_total = nb_tx_total+3;
 	}
 	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
 	{
@@ -651,13 +652,6 @@ l2fwd_main_loop(void)
 					{data[0],data[1],data[2],data[3],data[4],data[5]}
 				};
 
-				//Dump packets into a file
-				FILE *mbuf_file;
-				mbuf_file = fopen("mbuf_dump.txt","a");
-				fprintf(mbuf_file, "\n ------------------ \n Port:%d ----",portid);
-				rte_pktmbuf_dump(mbuf_file,m,1000);
-				fclose(mbuf_file);
-
 				if(likely(network_coding == 1))
 				{
 					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to nocode (normal forwarding) (4).
@@ -963,7 +957,7 @@ main(int argc, char **argv)
 	//Update config settings first from l2fwd-nc.cfg
 	//DD
 	update_settings();
-	
+
 	//Print start_time to file.
 	FILE *start_time;
 	start_time = fopen("start.time","r+");

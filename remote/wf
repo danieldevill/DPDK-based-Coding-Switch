@@ -41,7 +41,7 @@ sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-s
 -device e1000,vlan=10,mac=de:ad:be:ef:01:05 \
 -net tap,name=net11,vlan=10,ifname=sw_tap8,script=no,downscript=no \
 -device e1000,vlan=11,mac=de:ad:be:ef:11:11 \
--net tap,name=net12,vlan=11,ifname=sw_swtap1,script=no,downscript=no' &
+-net tap,name=net12,vlan=11,ifname=sw_sw_tap1,script=no,downscript=no' &
 
 sleep 5
 
