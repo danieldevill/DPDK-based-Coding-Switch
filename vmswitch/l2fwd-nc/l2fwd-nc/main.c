@@ -196,65 +196,25 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-	//Get ethernet dst and src
-	struct ether_addr d_addr = { 
-		{data[0],data[1],data[2],data[3],data[4],data[5]}
-	};
-	struct ether_addr s_addr = {
-		{data[6],data[7],data[8],data[9],data[10],data[11]}
-	};
+	int status = dst_mac_status(m, portid);
+	int dst_port = get_dst_port(m);
 
-	//Check if MAC forwarding table has port entry for dst.
-	unsigned mac_add = 0; //Add src mac to table.
-	unsigned mac_dst_found = 0; //DST MAC not found by default.
-	for (int i=0;i<MAC_ENTRIES;i++)
+	if(status >= 1) //Send packet to dst port.
 	{
-		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if table contains src address in table
-		{
-			mac_add = 1; //Dont add mac address as it is already in the table.
-		}
-		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) //Else handle like a normal packet forward.
-		{
-			//Send packet to dst port.
-			buffer = tx_buffer[mac_fwd_table[i].port];
-			mac_dst_found = 1;
-			rte_eth_tx_buffer(mac_fwd_table[i].port, 0, buffer, m);
-			nb_tx_total++;
-		}
+		buffer = tx_buffer[dst_port];
+		rte_eth_tx_buffer(dst_port, 0, buffer, m);
+		nb_tx_total++;
 	}
-	if(mac_dst_found == 0) //Flood the packet out to all ports
+
+	else if(status == 0) //Flood the packet out to all ports
 	{
 		for (uint port = 0; port < rte_eth_dev_count(); port++)
 		{
-			printf("Sent out of Port: %d\n", port);
 			if(port!=portid)
 			{
 				buffer = tx_buffer[port];
 				rte_eth_tx_buffer(port, 0, buffer, m);
 				nb_tx_total++;
-			}
-		}
-	}
-	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
-	{
-		mac_fwd_table[mac_counter].d_addr = s_addr;
-		mac_fwd_table[mac_counter].type = DYNAMIC;
-		mac_fwd_table[mac_counter].port = portid;
-		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
-		mac_counter++; //Increment MAC counter.
-
-		printf("\nUpdated MAC TABLE.\n");
-		for (int i=0;i<MAC_ENTRIES;i++)
-		{
-			if(mac_fwd_table[i].d_addr.addr_bytes[0] != 0)
-			{
-				printf("%u ", mac_fwd_table[i].vlan);
-				for (uint j = 0; j < sizeof(mac_fwd_table[i].d_addr.addr_bytes); ++j)
-				{
-					printf("%02x:", mac_fwd_table[i].d_addr.addr_bytes[j]);
-				}
-				printf(" %u %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port);
 			}
 		}
 	}
@@ -509,9 +469,9 @@ update_settings(void)
 		}
 		if(config_lookup_int(&cfg,"general_settings.MAC_ENTRIES",&setting))
 		{
-			mac_fwd_table = malloc(setting * sizeof(struct mac_table_entry));
+			mac_fwd_table = calloc(setting,setting * sizeof(struct mac_table_entry));
 			//Allocate memory for encoding rings equal to MAC table size.
-			encoding_rings = malloc(setting * sizeof(struct rte_ring));
+			encoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
 		}
 		if(config_lookup_int(&cfg,"general_settings.NB_MBUF",&setting))
 		{
@@ -550,6 +510,100 @@ update_settings(void)
 	}
 
 	config_destroy(&cfg);
+}
+
+//Check if dst_addr exists, otherwise adds it to the MAC table. 1 if it exits, 2 if it exists and is coding capable, and 0 if it doesnt exist.
+static int dst_mac_status(struct rte_mbuf *m, unsigned portid)
+{
+	//Get recieved packet
+	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+	//Get dst address
+	struct ether_addr d_addr = { 
+		{data[0],data[1],data[2],data[3],data[4],data[5]}
+	};
+
+	struct ether_addr s_addr = {
+		{data[6],data[7],data[8],data[9],data[10],data[11]}
+	};
+
+	unsigned mac_add = 0; //Add src mac to table.
+	unsigned mac_dst_found = 0; //DST MAC not found by default.
+	for (int i=0;i<MAC_ENTRIES;i++)
+	{
+
+		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if table contains src address in table
+		{
+			mac_add = 1; //Dont add mac address as it is already in the table.
+		}
+
+		if((memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) && mac_fwd_table[i].coding_capable == 1) //In table and Coding Capable.
+		{
+			mac_dst_found = 2;
+		}
+		else if(d_addr.addr_bytes[5] == 7) //Temp to say that port1 (debB is coding capable)
+		{
+			mac_dst_found = 2;
+		}
+		else if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) //In MAC tabe but not coding capable.
+		{
+			mac_dst_found = 1;
+		}
+	}
+
+	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
+	{
+		mac_fwd_table[mac_counter].vlan = 0;
+		mac_fwd_table[mac_counter].d_addr = s_addr;
+		mac_fwd_table[mac_counter].type = DYNAMIC;
+		mac_fwd_table[mac_counter].port = portid;
+		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
+		mac_counter++; //Increment MAC counter.
+
+		//Also create rte_ring for encoding queue, for each new MAC entry.
+		encoding_rings[mac_counter] = *rte_ring_create(""+mac_counter,MAX_SYMBOLS,SOCKET_ID_ANY,RING_F_SC_DEQ);
+
+		//Print updated MAC table to Console.
+		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR TYPE PORT CODING_CAPABLE\n");
+		for(int i=0;i<MAC_ENTRIES;i++)
+		{
+			if(mac_fwd_table[i].d_addr.addr_bytes[0] != 0)
+			{
+				printf("%u ", mac_fwd_table[i].vlan);
+				for (uint j = 0; j < sizeof(mac_fwd_table[i].d_addr.addr_bytes); ++j)
+				{
+					printf("%02x:", mac_fwd_table[i].d_addr.addr_bytes[j]);
+				}
+				printf(" %u %u %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
+			}
+		}
+	}
+
+	return mac_dst_found;
+
+}
+
+//Return MAC port based on dst_addr.
+static int get_dst_port(struct rte_mbuf *m)
+{
+	//Get recieved packet
+	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+	//Get dst address
+	struct ether_addr d_addr = { 
+		{data[0],data[1],data[2],data[3],data[4],data[5]}
+	};
+
+	int portid = -1;
+	for(int i=0;i<MAC_ENTRIES;i++)
+	{
+		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0)
+		{
+			portid = mac_fwd_table[i].port;
+		}
+	}
+
+	return portid;
 }
 
 /* main processing loop */
@@ -593,15 +647,12 @@ l2fwd_main_loop(void)
 	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(codec,finite_field,MAX_SYMBOLS,MAX_SYMBOL_SIZE);
 	//Create encoder and decoder
 	kodoc_coder_t decoder = kodoc_factory_build_coder(decoder_factory);
-	//Coding Capable flag
-	uint8_t coding_capable = 0;
 	//Decoder Config
 	decoded_symbols = (uint8_t*)malloc(MAX_SYMBOLS*sizeof(uint8_t));
 	reset_decoder(&decoder);
 
 	while (!force_quit) {
 		cur_tsc = rte_rdtsc();
-
 		/*
 		 * TX burst queue drain
 		 */
@@ -648,34 +699,22 @@ l2fwd_main_loop(void)
 				//Get recieved packet
 				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
-				//Get ether type
-				uint16_t ether_type = (data[13] | (data[12] << 8));
-
 				//Get dst address
 				struct ether_addr d_addr = { 
 					{data[0],data[1],data[2],data[3],data[4],data[5]}
 				};
+
+				//Get ether type
+				uint16_t ether_type = (data[13] | (data[12] << 8));
 
 				if(likely(network_coding == 1))
 				{
 					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to nocode (normal forwarding) (4).
 					//Encoded, Decoded and Recoded algorithms will send to normal forwarding once complete. i.e 4 possible directions.
 
-					//Check if next hop is coding capable, or has coding capable nodes.
-					for (int k=0;k<MAC_ENTRIES;k++)
-					{
-						if((memcmp(mac_fwd_table[k].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) && mac_fwd_table[k].coding_capable == 1) //Go to encode(1) or recode(3).
-						{
-							coding_capable = 1;
-							break;
-						}
-						else if(d_addr.addr_bytes[5] == 7) //Temp to say that port1 (debB is coding capable)
-						{
-							coding_capable = 1;
-							break;
-						}
-					}
-					if(coding_capable == 1) //Go to encode(1) or recode(3).
+					int status = dst_mac_status(m, portid); //Get dst_addr status.
+
+					if(status == 2) //Go to encode(1) or recode(3).
 					{
 						//Check if packet is encoded (NC type).
 						if(ether_type == 0x2020) //Go to recode()3.
@@ -686,6 +725,16 @@ l2fwd_main_loop(void)
 						else //Go to encode(1).
 						{
 							printf("\nEncode\n");
+							//Add packet to encoding ring.
+							for (int i=0;i<MAC_ENTRIES;i++)
+							{	
+								if(memcmp(mac_fwd_table[MAC_ENTRIES].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0)
+								{
+									rte_ring_enqueue(&encoding_rings[MAC_ENTRIES],m);
+									break;
+								}
+							}		
+							//Run encoder function.
 							net_encode(&encoder_factory);
 						}
 					}
@@ -703,8 +752,6 @@ l2fwd_main_loop(void)
 							l2fwd_learning_forward(m, portid);
 						}
 					}
-					//Reset coding capable flag.
-					coding_capable = 0;
 				}	
 				else //Operate like a normal learning switch.
 				{
