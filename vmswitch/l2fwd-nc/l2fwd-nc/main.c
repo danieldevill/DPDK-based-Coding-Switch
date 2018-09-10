@@ -192,11 +192,10 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 //Functions defined by D.B.B de Villiers
 
 static void
-l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid)
+l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid, int status)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	int status = dst_mac_status(m, portid);
 	int dst_port = get_dst_port(m);
 
 	if(status >= 1) //Send packet to dst port.
@@ -226,7 +225,8 @@ net_encode(kodoc_factory_t *encoder_factory)
 	//Loop through each dst_addr in the MAC table and check if the ring is full. If the ring is full then begin decoding on that queue.
 	for(int i=0;i<=ENCODING_RINGS;i++)
 	{
-		if(rte_ring_full(&encoding_rings[i])==1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
+		printf("Items in Ring: %d\n", rte_ring_count(&encoding_rings[i]));
+		if(rte_ring_count(&encoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
 		{
 			//Begin decoding on rings.
 			uint* obj_left = 0;
@@ -236,12 +236,15 @@ net_encode(kodoc_factory_t *encoder_factory)
 			{
 				printf("Encoding..\n");
 				kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
+				printf("Encoding..1\n");
 				//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
 				for(uint pkt=0;pkt<MAX_SYMBOLS;pkt++)
 				{
+					printf("Encoding..2\n");
 					//Get recieved packet
 					const unsigned char* data = rte_pktmbuf_mtod(dequeued_data[MAX_SYMBOLS], void *); //Convert data to char.
 					//Get ethernet dst and src
+					printf("Encoding..3\n");
 					struct ether_addr d_addr = { 
 						{data[0],data[1],data[2],data[3],data[4],data[5]}
 					};
@@ -303,7 +306,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 	} 
 
 	//net_decode(encoded_mbuf, portid, decoder);
-	//l2fwd_learning_forward(encoded_mbuf,portid);
+	//l2fwd_learning_forward(encoded_mbuf,portid, status);
 
   /*if (rand() % 2)
 	{
@@ -408,7 +411,7 @@ net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
 				fprintf(mbuf_file,"------Decoded------\n"); //Decode raw frame.
 				fclose(mbuf_file);*/
 				
-			  	l2fwd_learning_forward(decoded_mbuf,portid);
+			  	//l2fwd_learning_forward(decoded_mbuf,portid,status);
 			  	rte_pktmbuf_free(decoded_mbuf);
 			  	free(data_no_ethertype);
 			}
@@ -558,10 +561,10 @@ static int dst_mac_status(struct rte_mbuf *m, unsigned portid)
 		mac_fwd_table[mac_counter].type = DYNAMIC;
 		mac_fwd_table[mac_counter].port = portid;
 		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
-		mac_counter++; //Increment MAC counter.
 
 		//Also create rte_ring for encoding queue, for each new MAC entry.
 		encoding_rings[mac_counter] = *rte_ring_create(""+mac_counter,MAX_SYMBOLS,SOCKET_ID_ANY,RING_F_SC_DEQ);
+		printf("Ring Created.\nrte_errno: %s\n", rte_strerror(rte_errno));
 
 		//Print updated MAC table to Console.
 		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR TYPE PORT CODING_CAPABLE\n");
@@ -577,6 +580,7 @@ static int dst_mac_status(struct rte_mbuf *m, unsigned portid)
 				printf(" %u %u %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
 			}
 		}
+		mac_counter++; //Increment MAC counter.
 	}
 
 	return mac_dst_found;
@@ -707,12 +711,13 @@ l2fwd_main_loop(void)
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));
 
+				//Get dst_addr status.
+				int status = dst_mac_status(m, portid); 
+
 				if(likely(network_coding == 1))
 				{
 					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to nocode (normal forwarding) (4).
 					//Encoded, Decoded and Recoded algorithms will send to normal forwarding once complete. i.e 4 possible directions.
-
-					int status = dst_mac_status(m, portid); //Get dst_addr status.
 
 					if(status == 2) //Go to encode(1) or recode(3).
 					{
@@ -728,9 +733,9 @@ l2fwd_main_loop(void)
 							//Add packet to encoding ring.
 							for (int i=0;i<MAC_ENTRIES;i++)
 							{	
-								if(memcmp(mac_fwd_table[MAC_ENTRIES].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0)
+								if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0)
 								{
-									rte_ring_enqueue(&encoding_rings[MAC_ENTRIES],m);
+									rte_ring_enqueue(&encoding_rings[i],m);
 									break;
 								}
 							}		
@@ -749,13 +754,13 @@ l2fwd_main_loop(void)
 						else //Go to nocode(4).
 						{
 							printf("\nNocode\n");
-							l2fwd_learning_forward(m, portid);
+							l2fwd_learning_forward(m, portid, status);
 						}
 					}
 				}	
 				else //Operate like a normal learning switch.
 				{
-					l2fwd_learning_forward(m, portid);
+					l2fwd_learning_forward(m, portid, status);
 				}
 			}
 		}
