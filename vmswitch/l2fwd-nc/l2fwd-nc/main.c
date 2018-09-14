@@ -87,6 +87,8 @@
 //Ive added a new idea where the mac table has a coding capable field.
 static int MAC_ENTRIES = 20;
 static int ENCODING_RINGS = 20;
+static int DECODING_RINGS = 20;
+
 #define STATIC 0
 #define DYNAMIC 1
 static unsigned mac_counter = 0;
@@ -100,6 +102,7 @@ struct mac_table_entry {
 struct mac_table_entry *mac_fwd_table; 
 //Pointer to all dst_add ring structs. 
 struct rte_ring *encoding_rings;
+struct rte_ring *decoding_rings;
 
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
@@ -112,6 +115,8 @@ static struct rte_eth_stats l2fwd_nc_dev_stats[RTE_MAX_ETHPORTS];
 struct dst_addr_status {
 	int status; //The status of the dst_addr. Either 0,1 or 2 for not_found,found and found + coding capable.
 	int table_index; //The index of the dst_addr on the table.
+	int dstport; //The #ID of the dst_addr port. 
+	int srcport; //The #ID of the in port.
 };
 
 //Kodo-c init:
@@ -120,16 +125,9 @@ struct dst_addr_status {
 static uint32_t MAX_SYMBOLS;
 static uint32_t MAX_SYMBOL_SIZE; //Size of MTU datatgram.
 //Select codec
-static uint32_t codec = kodoc_on_the_fly; //Sliding window can make use of feedback.
+static uint32_t codec = kodoc_full_vector; //Sliding window can make use of feedback.
 //Finite field to use
 static uint32_t finite_field = kodoc_binary8;
-//Coding
-static uint8_t* decoded_symbols;
-static uint8_t* data_out;
-//Encoding buffers.
-static struct rte_mbuf** encoding_buffer;
-//Decoding buffers.
-static struct rte_mbuf** decoding_buffer;
 
 static volatile bool force_quit;
 
@@ -197,23 +195,21 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 //Functions defined by D.B.B de Villiers
 
 static void
-l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid, int status)
+l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
 
-	int dst_port = get_dst_port(m);
-
-	if(status >= 1) //Send packet to dst port.
+	if(status->status >= 1) //Send packet to dst port.
 	{
-		buffer = tx_buffer[dst_port];
-		rte_eth_tx_buffer(dst_port, 0, buffer, m);
+		buffer = tx_buffer[status->dstport];
+		rte_eth_tx_buffer(status->dstport, 0, buffer, m);
 		nb_tx_total++;
 	}
-	else if(status == 0) //Flood the packet out to all ports
+	else if(status->status == 0) //Flood the packet out to all ports
 	{
-		for (uint port = 0; port < rte_eth_dev_count(); port++)
+		for (int port = 0; port < rte_eth_dev_count(); port++)
 		{
-			if(port!=portid)
+			if(port!=status->srcport)
 			{
 				buffer = tx_buffer[port];
 				rte_eth_tx_buffer(port, 0, buffer, m);
@@ -226,11 +222,11 @@ l2fwd_learning_forward(struct rte_mbuf *m, unsigned portid, int status)
 static void 
 net_encode(kodoc_factory_t *encoder_factory)
 {
-	//Loop through each dst_addr in the MAC table and check if the ring is full. If the ring is full then begin decoding on that queue.
+	//Loop through each dst_addr in the MAC table and check if the ring is full. If the ring is full then begin encoding on that queue.
 	for(int i=0;i<=ENCODING_RINGS;i++)
 	{
-		printf("Items in Ring: %d\n", rte_ring_count(&encoding_rings[i]));
-		if(rte_ring_count(&encoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
+		printf("Items in Encoding Ring: %d\n", rte_ring_count(&encoding_rings[i]));
+		if(rte_ring_count(&encoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin encoding. Also need to add if the time limit is reached as an OR.
 		{
 			//Begin decoding on rings.
 			uint* obj_left = 0;
@@ -301,6 +297,10 @@ net_encode(kodoc_factory_t *encoder_factory)
 					free(data_in);
 					free(payload);
 
+					//Add packet to decoding ring. TEMP
+					struct dst_addr_status status = dst_mac_status(m, 0); //Set srcport to 0, doesnt matter as only need table_index
+					rte_ring_enqueue(&decoding_rings[status.table_index],(void *)encoded_mbuf);
+
 					rte_pktmbuf_free(encoded_mbuf);
 				}
 				kodoc_delete_coder(encoder);
@@ -312,15 +312,15 @@ net_encode(kodoc_factory_t *encoder_factory)
 		}
 	} 
 
-	//net_decode(encoded_mbuf, portid, decoder);
-	//l2fwd_learning_forward(encoded_mbuf,portid, status);
+	//net_decode(&decoder_factory);
+	//l2fwd_learning_forward(encoded_mbuf, &status);
 
   /*if (rand() % 2)
 	{
 		printf("Packet not dropped\n");
 		packets_nodrop++;
-		net_decode(encoded_mbuf, portid, decoder);
-		//net_decode(encoded_mbuf, portid, decoder);
+		net_decode(&decoder_factory);
+		//net_decode(&decoder_factory);
 	}
 	else
 	{
@@ -331,128 +331,105 @@ net_encode(kodoc_factory_t *encoder_factory)
 }
 
 static void
-net_decode(struct rte_mbuf *m, unsigned portid, kodoc_coder_t *decoder)
+net_decode(kodoc_factory_t *decoder_factory)
 {
-	//Get recieved packet
-	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-	//Get ethernet dst and src
-	struct ether_addr d_addr = { 
-		{data[0],data[1],data[2],data[3],data[4],data[5]}
-	};
-	struct ether_addr s_addr = {
-		{data[6],data[7],data[8],data[9],data[10],data[11]}
-	};
 
-	//Create Data buffers
-	uint32_t block_size = kodoc_block_size(*decoder);
-	uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(*decoder));
-
-	//Fill payload to decode, with data.
-	for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
+	//Loop through each decoding ring and check if the ring has atleast one object. 
+	for(int i=0;i<=DECODING_RINGS;i++)
 	{
-		if(j<rte_pktmbuf_data_len(m))
+		printf("Items in Decoding Ring: %d\n", rte_ring_count(&decoding_rings[i]));
+		if(rte_ring_count(&decoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
 		{
-			payload[j] = data[j+14]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
-		}
-		else
-		{
-			payload[j] = 0; //Pad with zeros after payload
-		}
-	}
-
-	//Specifies the data buffer where the decoder will store the decoded symbol.
-	//kodoc_set_mutable_symbol(*decoder ,kodoc_rank(*decoder) ,data_out, kodoc_symbol_size(*decoder));
-
-	//Pass payload to decoder
-	kodoc_read_payload(*decoder,payload);
-
-	//Decoder rank indicates how many symbols have been decoded.
-	printf("Payload processed by decoder, current rank = %d and %d\n", kodoc_rank(*decoder),kodoc_is_partially_complete(*decoder));
-
-	//Start decoding process
-	if(kodoc_has_partial_decoding_interface(*decoder) && kodoc_is_partially_complete(*decoder)) //Check if decoder supports partial decoding (which it should) and if symbols have been decoded.
-	{
-		//Loop through all symbols in generation. Find which symbol has been decoded.
-		for(uint i = 0;i<kodoc_symbols(*decoder);i++)
-		{
-			printf("Decoded symbols: %u\n", decoded_symbols[i]);
-			if(!decoded_symbols[i] && kodoc_is_symbol_uncoded(*decoder,i)) //Symbol is decoded, check if symbol has already been seen.
+			//Begin decoding on rings.
+			uint* obj_left = 0;
+			//rte_mbuf to hold the dequeued data.
+			struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
+			if(rte_ring_dequeue_bulk(&decoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>0)
 			{
-				//Flag symbol as decoded and seen.
-				decoded_symbols[i] = 1;
+				printf("Decoding..\n");
+				//Create decoder
+				kodoc_coder_t decoder = kodoc_factory_build_coder(*decoder_factory);
+				//Create Data buffers
+				uint32_t block_size = kodoc_block_size(decoder);
+				uint8_t* data_out = (uint8_t*) malloc(block_size);
+				//Specifies the data buffer where the decoder will store the decoded symbol.
+				kodoc_set_mutable_symbols(decoder , data_out, block_size);
 
-				uint8_t* data_no_ethertype = (uint8_t*) malloc(block_size);
-
-				//This symbol is newely decoded, send through to normal forwarding.
-				//Print decoded message
-				printf("Decoded Message:\n");
-				for(uint k =2;k<MAX_SYMBOL_SIZE-1;k++)
+				//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
+				for(uint pkt=0;pkt<MAX_SYMBOLS-1;pkt++)
 				{
-					data_no_ethertype[k-2] = data_out[k+(i*kodoc_symbol_size(*decoder))];
-					if(data_no_ethertype[k-2])
+					//Get recieved packet
+					struct rte_mbuf *m = dequeued_data[pkt];
+					const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+					//Get ethernet dst and src
+					struct ether_addr d_addr = { 
+						{data[0],data[1],data[2],data[3],data[4],data[5]}
+					};
+					struct ether_addr s_addr = {
+						{data[6],data[7],data[8],data[9],data[10],data[11]}
+					};
+
+					uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(decoder));
+
+					printf("%d\n", rte_pktmbuf_data_len(m));
+
+					//Fill payload to decode, with data.
+					for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
 					{
-						printf("%c ", data_no_ethertype[k-2]);
+						if(j<rte_pktmbuf_data_len(m))
+						{
+							payload[j] = (uint8_t)data[j+14]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
+							printf("%x\n", payload[j]);
+						}
+						else
+						{
+							payload[j] = 0; //Pad with zeros after payload
+						}
 					}
+
+					//Pass payload to decoder
+					kodoc_read_payload(decoder,payload);
+
+					//Decoder rank indicates how many symbols have been decoded.
+					printf("Payload processed by decoder, current rank = %d\n", kodoc_rank(decoder));
+
+					//Get ether type
+					uint16_t original_ether_type = (data_out[0] | (data_out[1] << 8));
+
+					//Create mbuf for decoded reply
+				  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+					char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
+					struct ether_hdr eth_hdr = {
+						d_addr, //Same as incoming source addr.
+						s_addr, //Port mac address
+						original_ether_type//Ether_type from decoded packet.
+					};	
+					decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
+					rte_memcpy(decoded_data+ETHER_HDR_LEN,data_out,MAX_SYMBOL_SIZE);
+
+					//Dump packets into a file
+				  	FILE *mbuf_file;
+					mbuf_file = fopen("mbuf_dump.txt","a");
+					fprintf(mbuf_file, "\n ------DECODED------ \n Port:----");
+					rte_pktmbuf_dump(mbuf_file,decoded_mbuf,1414);
+					fclose(mbuf_file);
+					
+				  	//l2fwd_learning_forward(decoded_mbuf, &status);
+				  	rte_pktmbuf_free(decoded_mbuf);
+				  	free(payload);
 				}
-				printf("\n");
 
-				//Get ether type
-				uint16_t original_ether_type = (data_out[0] | (data_out[1] << 8));
-
-				//Create mbuf for decoded reply
-			  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-				char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
-				struct ether_hdr eth_hdr = {	
-					d_addr, //Same as incoming source addr.
-					s_addr, //Port mac address
-					original_ether_type//Ether_type from decoded packet.
-				};	
-				decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
-				rte_memcpy(decoded_data+ETHER_HDR_LEN,data_no_ethertype,MAX_SYMBOL_SIZE);
-
-				//Dump packets into a file
-			  	FILE *mbuf_file;
-				mbuf_file = fopen("mbuf_dump.txt","a");
-				fprintf(mbuf_file, "\n ------DECODED------ \n Port:----");
-				rte_pktmbuf_dump(mbuf_file,decoded_mbuf,1414);
-				fclose(mbuf_file);
-				
-			  	//l2fwd_learning_forward(decoded_mbuf,portid,status);
-			  	rte_pktmbuf_free(decoded_mbuf);
-			  	free(data_no_ethertype);
+				free(data_out);
+				kodoc_delete_coder(decoder);
 			}
-		}
+		}	
 	}
-
-	free(payload);
 }
 
 static void
 net_recode(kodoc_factory_t *encoder_factory)
 {
 	printf("%ld\n",sizeof(encoder_factory));
-}
-
-static void 
-reset_decoder(kodoc_coder_t *decoder)
-{
-	uint32_t block_size = kodoc_block_size(*decoder);
-	memset(decoded_symbols, '\0', MAX_SYMBOLS*sizeof(uint8_t)); //Set all elements to zero.
-	data_out = (uint8_t*) malloc(block_size);
-	kodoc_set_mutable_symbols(*decoder,data_out, block_size);
-}
-
-static void
-coding_setup(void)
-{
-	//Configure encoder and decoder buffers
-	encoding_buffer = (struct rte_mbuf**)malloc(rte_eth_dev_count()*sizeof(struct rte_mbuf*));
-	decoding_buffer = (struct rte_mbuf**)malloc(rte_eth_dev_count()*sizeof(struct rte_mbuf*));
-	for(uint port = 0;port<rte_eth_dev_count();port++)
-	{
-		encoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
-		decoding_buffer[port] = (struct rte_mbuf*)malloc(MAX_SYMBOLS*sizeof(struct rte_mbuf));
-	}
 }
 
 //Libconfig setup. DD
@@ -481,6 +458,7 @@ update_settings(void)
 			mac_fwd_table = calloc(setting,setting * sizeof(struct mac_table_entry));
 			//Allocate memory for encoding rings equal to MAC table size.
 			encoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
+			decoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
 		}
 		if(config_lookup_int(&cfg,"general_settings.NB_MBUF",&setting))
 		{
@@ -522,7 +500,7 @@ update_settings(void)
 }
 
 //Check if dst_addr exists, otherwise adds it to the MAC table. 1 if it exits, 2 if it exists and is coding capable, and 0 if it doesnt exist.
-static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned portid)
+static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 {
 	//Get recieved packet
 	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
@@ -538,6 +516,8 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned portid
 
 	struct dst_addr_status status;
 
+	status.dstport = -1;
+	status.srcport = srcport;
 
 	unsigned mac_add = 0; //Add src mac to table.
 	unsigned mac_dst_found = 0; //DST MAC not found by default.
@@ -557,6 +537,7 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned portid
 				mac_dst_found = 2; //Coding capable.
 			}
 			status.table_index = i;
+			status.dstport = mac_fwd_table[i].port;
 		}
 	}
 
@@ -565,7 +546,7 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned portid
 		mac_fwd_table[mac_counter].vlan = 0;
 		mac_fwd_table[mac_counter].d_addr = s_addr;
 		mac_fwd_table[mac_counter].type = DYNAMIC;
-		mac_fwd_table[mac_counter].port = portid;
+		mac_fwd_table[mac_counter].port = srcport;
 		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
 		if(s_addr.addr_bytes[5] == 7) //TEMP make debB coding capable.
 		{
@@ -573,52 +554,34 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned portid
 		}
 
 		//Also create rte_ring for encoding queue, for each new MAC entry.
-		encoding_rings[mac_counter] = *rte_ring_create((const char *)d_addr.addr_bytes,MAX_SYMBOLS,SOCKET_ID_ANY,RING_F_SC_DEQ);
+		char ring_name[30];
+		sprintf(ring_name,"encoding_ring%d",mac_counter);
+		encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+		//TEMP create decoding ring at same time as encoding. I need to figure out where to put it.		
+		sprintf(ring_name,"decoding_ring%d",mac_counter);
+		decoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
 
 		//Increment MAC counter.
 		mac_counter++;
 
 		//Print updated MAC table to Console.
-		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR TYPE PORT CODING_CAPABLE\n");
+		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR             TYPE PORT CODING_CAPABLE\n");
 		for(int i=0;i<MAC_ENTRIES;i++)
 		{
 			if(mac_fwd_table[i].d_addr.addr_bytes[0] != 0)
 			{
-				printf("%u ", mac_fwd_table[i].vlan);
+				printf("%u    ", mac_fwd_table[i].vlan);
 				for (uint j = 0; j < sizeof(mac_fwd_table[i].d_addr.addr_bytes); ++j)
 				{
 					printf("%02x:", mac_fwd_table[i].d_addr.addr_bytes[j]);
 				}
-				printf(" %u %u %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
+				printf(" %u    %u         %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
 			}
 		}
 	}
 
 	status.status = mac_dst_found;
 	return status;
-}
-
-//Return MAC port based on dst_addr.
-static int get_dst_port(struct rte_mbuf *m)
-{
-	//Get recieved packet
-	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-
-	//Get dst address
-	struct ether_addr d_addr = { 
-		{data[0],data[1],data[2],data[3],data[4],data[5]}
-	};
-
-	int portid = -1;
-	for(int i=0;i<MAC_ENTRIES;i++)
-	{
-		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0)
-		{
-			portid = mac_fwd_table[i].port;
-		}
-	}
-
-	return portid;
 }
 
 /* main processing loop */
@@ -660,11 +623,6 @@ l2fwd_main_loop(void)
 	//Encoded and decoder factory
 	kodoc_factory_t encoder_factory = kodoc_new_encoder_factory(codec,finite_field,MAX_SYMBOLS,MAX_SYMBOL_SIZE);
 	kodoc_factory_t decoder_factory = kodoc_new_decoder_factory(codec,finite_field,MAX_SYMBOLS,MAX_SYMBOL_SIZE);
-	//Create encoder and decoder
-	kodoc_coder_t decoder = kodoc_factory_build_coder(decoder_factory);
-	//Decoder Config
-	decoded_symbols = (uint8_t*)malloc(MAX_SYMBOLS*sizeof(uint8_t));
-	reset_decoder(&decoder);
 
 	while (!force_quit) {
 		cur_tsc = rte_rdtsc();
@@ -718,9 +676,7 @@ l2fwd_main_loop(void)
 				uint16_t ether_type = (data[13] | (data[12] << 8));
 
 				//Get dst_addr status.
-				 struct dst_addr_status status = dst_mac_status(m, portid); 
-
-				printf("dst_addr status: %d\n", status.status);
+				struct dst_addr_status status = dst_mac_status(m, portid); 
 
 				if(likely(network_coding == 1) && status.status != 0) //If status is 0, then default to normal forwarding. 
 				{
@@ -748,7 +704,8 @@ l2fwd_main_loop(void)
 							fclose(mbuf_file);
 							//Run encoder function.
 							net_encode(&encoder_factory);
-	
+							//TEMP Run decoder right after encoder.
+							net_decode(&decoder_factory);
 						}
 					}
 					else //Go to decode(2) or nocode(4).
@@ -757,18 +714,18 @@ l2fwd_main_loop(void)
 						if(ether_type == 0x2020) //Go to decode(2).
 						{
 							printf("\nDecode\n");
-							net_decode(m, portid, &decoder);
+							net_decode(&decoder_factory);
 						}
 						else //Go to nocode(4).
 						{
 							printf("\nNocode\n");
-							l2fwd_learning_forward(m, portid, status.status);
+							l2fwd_learning_forward(m, &status);
 						}
 					}
 				}	
 				else //Operate like a normal learning switch.
 				{
-					l2fwd_learning_forward(m, portid, status.status);
+					l2fwd_learning_forward(m, &status);
 				}
 			}
 		}
@@ -811,7 +768,6 @@ l2fwd_main_loop(void)
 	}
 
 	//Cleanup after network coding
-	kodoc_delete_coder(decoder);
 	kodoc_delete_factory(encoder_factory);
 	kodoc_delete_factory(decoder_factory);
 }
@@ -1181,9 +1137,6 @@ main(int argc, char **argv)
 				l2fwd_ports_eth_addr[portid].addr_bytes[5]);
 
 	}
-
-	//DD
-	coding_setup();
 
 	check_all_ports_link_status(nb_ports, l2fwd_enabled_port_mask);
 
