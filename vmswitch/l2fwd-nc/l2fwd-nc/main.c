@@ -299,7 +299,14 @@ net_encode(kodoc_factory_t *encoder_factory)
 
 					//Add packet to decoding ring. TEMP
 					struct dst_addr_status status = dst_mac_status(m, 0); //Set srcport to 0, doesnt matter as only need table_index
-					rte_ring_enqueue(&decoding_rings[status.table_index],(void *)encoded_mbuf);
+					if(rte_ring_enqueue(&decoding_rings[status.table_index],(void *)encoded_mbuf)!=0)
+					{
+						printf("Error in adding encoded packet to decoding ring.\n");
+					}
+					else
+					{
+						printf("Encoded packet added to decoding ring succcess.\n");
+					}
 
 					rte_pktmbuf_free(encoded_mbuf);
 				}
@@ -344,9 +351,10 @@ net_decode(kodoc_factory_t *decoder_factory)
 			uint* obj_left = 0;
 			//rte_mbuf to hold the dequeued data.
 			struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
-			if(rte_ring_dequeue_bulk(&decoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>0)
+			int obj_dequeued = rte_ring_dequeue_bulk(&decoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
+			if(obj_dequeued>0)
 			{
-				printf("Decoding..\n");
+				printf("Decoding.. Obj dequeued: %d (There should be null objects left)\n",obj_dequeued);
 				//Create decoder
 				kodoc_coder_t decoder = kodoc_factory_build_coder(*decoder_factory);
 				//Create Data buffers
@@ -360,6 +368,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 				{
 					//Get recieved packet
 					struct rte_mbuf *m = dequeued_data[pkt];
+					printf("At packet %d\n", pkt);
 					const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 					//Get ethernet dst and src
 					struct ether_addr d_addr = { 
@@ -369,7 +378,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 						{data[6],data[7],data[8],data[9],data[10],data[11]}
 					};
 
-					uint8_t* payload = (uint8_t*) malloc(kodoc_payload_size(decoder));
+					uint8_t* payload = (uint8_t*)malloc(kodoc_payload_size(decoder));
 
 					printf("%d\n", rte_pktmbuf_data_len(m));
 
@@ -1149,6 +1158,11 @@ main(int argc, char **argv)
 			break;
 		}
 	}
+
+	//Free rings and MAC_TABLE
+	free(mac_fwd_table);
+	free(encoding_rings);
+	free(decoding_rings);
 
 	//Close ports when finished
 	for (portid = 0; portid < nb_ports; portid++) {
