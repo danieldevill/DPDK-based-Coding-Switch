@@ -396,8 +396,11 @@ net_decode(kodoc_factory_t *decoder_factory)
 					
 					for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
 					{
-						payload[j] = data_out[((MAX_SYMBOL_SIZE-1)*pkt)+j];
+						payload[j] = data_out[((MAX_SYMBOL_SIZE)*pkt)+j];
+						printf("%x_",payload[j]);
 					}
+
+					printf("\n");
 
 					//Get ethernet dst and src
 					struct ether_addr d_addr = {
@@ -419,7 +422,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 						original_ether_type//Ether_type from decoded packet.
 					};	
 					decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
-					rte_memcpy(decoded_data+ETHER_HDR_LEN,payload,MAX_SYMBOL_SIZE);
+					rte_memcpy(decoded_data+ETHER_HDR_LEN-2,payload,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
 					
 					//Dump packets into a file
 				  	FILE *mbuf_file;
@@ -710,6 +713,14 @@ l2fwd_main_loop(void)
 							printf("\nEncode\n");
 							//Add packet to encoding ring.
 							rte_ring_enqueue(&encoding_rings[status.table_index],(void *)m);
+
+							//Dump packets into a file
+						  	FILE *mbuf_file;
+							mbuf_file = fopen("mbuf_dump.txt","a");
+							fprintf(mbuf_file, "\n ------BEFORE------ \n Port:----");
+							rte_pktmbuf_dump(mbuf_file,m,1414);
+							fclose(mbuf_file);
+
 							//Run encoder function.
 							net_encode(&encoder_factory);
 							//TEMP Run decoder right after encoder.
