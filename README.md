@@ -13,6 +13,7 @@ A network coding capable switch implemented using Intel's DPDK framework.
 	* libconfig-dev
 	* uml-utilities (For vm network topology setup)
 	* bridge-utils (For vm network topology setup)
+	* libsodium-dev (For generationID)
 
 ## Notes:
 	* The switch vm might have to have the kernel recompiled based on the cpu type.

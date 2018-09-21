@@ -47,7 +47,7 @@ SRCS-y := main.c
 # Add kodo headers and link to shared library. Also included libconfig library. DD.
 CFLAGS += -I/home/switch/kodo-c/shared_kodoc/include
 # List of libraries to link with
-LDLIBS += -L/home/switch/kodo-c/shared_kodoc -Bdynamic -lkodoc -lstdc++ -rpath=/home/switch/kodo-c/shared_kodoc -lconfig
+LDLIBS += -L/home/switch/kodo-c/shared_kodoc -Bdynamic -lkodoc -lstdc++ -rpath=/home/switch/kodo-c/shared_kodoc -lconfig -lsodium
 
 CFLAGS += -O3
 CFLAGS += $(WERROR_FLAGS)
