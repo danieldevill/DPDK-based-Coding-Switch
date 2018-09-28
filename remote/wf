@@ -26,7 +26,7 @@ sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-s
 
 sleep 5
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_1.qcow2 \
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_2.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
