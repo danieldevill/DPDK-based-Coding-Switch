@@ -87,8 +87,8 @@
 
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
-static int MAC_ENTRIES = 20;
-static int ENCODING_RINGS = 20;
+#define MAC_ENTRIES 20
+#define ENCODING_RINGS 20
 #define GENID_LEN 8
 #define ETHER_TYPE_LEN 2
 
@@ -115,7 +115,6 @@ struct rte_ring *encoding_rings;
 
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
-static uint32_t nb_tx_total = 0;
 static int network_coding;
 //Link Sats
 static struct rte_eth_link l2fwd_nc_links[RTE_MAX_ETHPORTS];
@@ -206,22 +205,17 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 static void
 l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 {
+	printf("lerr0\n");
 	struct rte_eth_dev_tx_buffer *buffer;
-
+	buffer = tx_buffer[status->dstport];
 	if(status->status >= 1) //Send packet to dst port.
 	{
-		buffer = tx_buffer[status->dstport];
+		printf("lerr1\n");
+		printf("lerr2\n");
 		rte_eth_tx_buffer(status->dstport, 0, buffer, m);
-
-
-		//Dump packets into a file
-					FILE *mbuf_file;
-					mbuf_file = fopen("mbuf_dump.txt","a");
-					fprintf(mbuf_file, "\n ------ENCODED------ \n Port: ----");
-					rte_pktmbuf_dump(mbuf_file,m,1414);
-					fclose(mbuf_file);
-
-		nb_tx_total++;
+		printf("lerr3\n");
+		rte_eth_tx_buffer_flush(status->dstport, 0, buffer);
+		printf("lerr4\n");
 	}
 	else if(status->status == 0) //Flood the packet out to all ports
 	{
@@ -229,9 +223,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 		{
 			if(port!=status->srcport)
 			{
-				buffer = tx_buffer[port];
 				rte_eth_tx_buffer(port, 0, buffer, m);
-				nb_tx_total++;
 			}
 		}
 	}
@@ -256,8 +248,6 @@ net_encode(kodoc_factory_t *encoder_factory)
 				//Create generationID 
 				char genID[GENID_LEN];
 				generate_generationID(genID);
-
-				printf("GEN ID: %s\n", genID);
 
 				kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
 
@@ -368,7 +358,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 
 				//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
 				uint pkt=0;
-				while (!kodoc_is_complete(decoder))
+				while (!kodoc_is_complete(decoder) && (pkt < MAX_SYMBOLS))
 				{
 					//Get recieved packet
 					struct rte_mbuf *m = dequeued_data[pkt++];
@@ -426,6 +416,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 					
 					struct dst_addr_status status = dst_mac_status(decoded_mbuf, 0);
 				  	l2fwd_learning_forward(decoded_mbuf, &status);
+
 				  	rte_pktmbuf_free(decoded_mbuf);
 
 				  	//Advance pointer to next decoded data of packet in data_out.
@@ -541,7 +532,6 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 	if(in_table == 0)
 	{
 		//Add genID to table.
-		//char *genID = strcpy(genID_table[genIDcounter].ID, generationID);
 		rte_memcpy(genID_table[genIDcounter].ID,generationID,GENID_LEN);
 		//Create decoder queue for newly received generationID	
 		rte_ring_create(genID_table[genIDcounter].ID,MAX_SYMBOLS,SOCKET_ID_ANY,0);
@@ -564,13 +554,14 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 {
 	//Get recieved packet
 	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-
+	printf("err0\n");
 	//Get ethernet dst and src
 	struct ether_addr d_addr;
 	rte_memcpy(d_addr.addr_bytes,data,ETHER_ADDR_LEN);
 	struct ether_addr s_addr;
 	rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
 	struct dst_addr_status status;
+	printf("err1\n");
 
 	status.dstport = -1;
 	status.srcport = srcport;
@@ -579,7 +570,6 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 	unsigned mac_dst_found = 0; //DST MAC not found by default.
 	for (int i=0;i<MAC_ENTRIES;i++)
 	{
-
 		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if table contains src address.
 		{
 			mac_add = 1; //Dont add mac address as it is already in the table.
@@ -596,6 +586,8 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 			status.dstport = mac_fwd_table[i].port;
 		}
 	}
+
+	printf("err2\n");
 
 	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
 	{
@@ -628,6 +620,8 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 			}
 		}
 	}
+
+	printf("err3\n");
 
 	status.status = mac_dst_found;
 	return status;
@@ -774,6 +768,7 @@ l2fwd_main_loop(void)
 						{
 							printf("\nNocode\n");
 							l2fwd_learning_forward(m, &status);
+							printf("Nocode\n");
 						}
 					}
 				}	
@@ -1205,7 +1200,7 @@ main(int argc, char **argv)
 		mac_fwd_table[mac_counter].d_addr = d_addr;
 		mac_fwd_table[mac_counter].type = DYNAMIC;
 		mac_fwd_table[mac_counter].port = 4;
-		mac_fwd_table[mac_counter].coding_capable = 1; //Default coding capable to not capable (0) for the time being.
+		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
 
 		//Also create rte_ring for encoding queue, for each new MAC entry.
 		char ring_name[30];
