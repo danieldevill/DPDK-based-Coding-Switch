@@ -35,15 +35,7 @@ dep_main.o = /home/switch/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
  /usr/include/x86_64-linux-gnu/bits/sys_errlist.h \
  /usr/include/x86_64-linux-gnu/bits/stdio.h \
- /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/sodium.h \
- /usr/include/sodium/version.h /usr/include/sodium/export.h \
- /usr/include/sodium/core.h /usr/include/sodium/crypto_aead_aes256gcm.h \
- /usr/include/sodium/crypto_aead_chacha20poly1305.h \
- /usr/include/sodium/crypto_aead_xchacha20poly1305.h \
- /usr/include/sodium/crypto_auth.h \
- /usr/include/sodium/crypto_auth_hmacsha512256.h \
- /usr/include/sodium/crypto_auth_hmacsha512.h \
- /usr/include/sodium/crypto_hash_sha512.h /usr/include/stdlib.h \
+ /usr/include/x86_64-linux-gnu/bits/stdio2.h /usr/include/stdlib.h \
  /usr/include/x86_64-linux-gnu/bits/waitflags.h \
  /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
  /usr/include/x86_64-linux-gnu/bits/floatn.h \
@@ -67,77 +59,7 @@ dep_main.o = /home/switch/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/include/alloca.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
  /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
- /usr/include/x86_64-linux-gnu/bits/stdlib.h \
- /usr/include/sodium/crypto_auth_hmacsha256.h \
- /usr/include/sodium/crypto_hash_sha256.h \
- /usr/include/sodium/crypto_auth_hmacsha512.h \
- /usr/include/sodium/crypto_auth_hmacsha512256.h \
- /usr/include/sodium/crypto_box.h \
- /usr/include/sodium/crypto_box_curve25519xsalsa20poly1305.h \
- /usr/include/sodium/crypto_stream_xsalsa20.h \
- /usr/include/sodium/crypto_box_curve25519xsalsa20poly1305.h \
- /usr/include/sodium/crypto_core_hsalsa20.h \
- /usr/include/sodium/crypto_core_hchacha20.h \
- /usr/include/sodium/crypto_core_salsa20.h \
- /usr/include/sodium/crypto_core_salsa2012.h \
- /usr/include/sodium/crypto_core_salsa208.h \
- /usr/include/sodium/crypto_generichash.h \
- /usr/include/sodium/crypto_generichash_blake2b.h \
- /usr/include/sodium/crypto_generichash_blake2b.h \
- /usr/include/sodium/crypto_hash.h \
- /usr/include/sodium/crypto_hash_sha256.h \
- /usr/include/sodium/crypto_hash_sha512.h \
- /usr/include/sodium/crypto_kdf.h \
- /usr/include/sodium/crypto_kdf_blake2b.h \
- /usr/include/sodium/crypto_kdf_blake2b.h /usr/include/sodium/crypto_kx.h \
- /usr/include/sodium/crypto_onetimeauth.h \
- /usr/include/sodium/crypto_onetimeauth_poly1305.h \
- /usr/include/sodium/crypto_onetimeauth_poly1305.h \
- /usr/include/sodium/crypto_pwhash.h \
- /usr/include/sodium/crypto_pwhash_argon2i.h \
- /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
- /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
- /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
- /usr/include/x86_64-linux-gnu/bits/local_lim.h \
- /usr/include/linux/limits.h \
- /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
- /usr/include/sodium/crypto_pwhash_argon2id.h \
- /usr/include/sodium/crypto_pwhash_argon2i.h \
- /usr/include/sodium/crypto_scalarmult.h \
- /usr/include/sodium/crypto_scalarmult_curve25519.h \
- /usr/include/sodium/crypto_scalarmult_curve25519.h \
- /usr/include/sodium/crypto_secretbox.h \
- /usr/include/sodium/crypto_secretbox_xsalsa20poly1305.h \
- /usr/include/sodium/crypto_secretbox_xsalsa20poly1305.h \
- /usr/include/sodium/crypto_secretstream_xchacha20poly1305.h \
- /usr/include/sodium/crypto_aead_xchacha20poly1305.h \
- /usr/include/sodium/crypto_stream_chacha20.h \
- /usr/include/sodium/crypto_shorthash.h \
- /usr/include/sodium/crypto_shorthash_siphash24.h \
- /usr/include/sodium/crypto_shorthash_siphash24.h \
- /usr/include/sodium/crypto_sign.h \
- /usr/include/sodium/crypto_sign_ed25519.h \
- /usr/include/sodium/crypto_sign_ed25519.h \
- /usr/include/sodium/crypto_stream.h \
- /usr/include/sodium/crypto_stream_chacha20.h \
- /usr/include/sodium/crypto_stream_salsa20.h \
- /usr/include/sodium/crypto_stream_xsalsa20.h \
- /usr/include/sodium/crypto_verify_16.h \
- /usr/include/sodium/crypto_verify_32.h \
- /usr/include/sodium/crypto_verify_64.h /usr/include/sodium/randombytes.h \
- /usr/include/sodium/randombytes_salsa20_random.h \
- /usr/include/sodium/randombytes.h \
- /usr/include/sodium/randombytes_sysrandom.h \
- /usr/include/sodium/runtime.h /usr/include/sodium/utils.h \
- /usr/include/sodium/crypto_box_curve25519xchacha20poly1305.h \
- /usr/include/sodium/crypto_stream_xchacha20.h \
- /usr/include/sodium/crypto_core_ed25519.h \
- /usr/include/sodium/crypto_scalarmult_ed25519.h \
- /usr/include/sodium/crypto_secretbox_xchacha20poly1305.h \
- /usr/include/sodium/crypto_pwhash_scryptsalsa208sha256.h \
- /usr/include/sodium/crypto_stream_salsa2012.h \
- /usr/include/sodium/crypto_stream_salsa208.h \
- /usr/include/sodium/crypto_stream_xchacha20.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/stdlib.h /usr/include/string.h \
  /usr/include/strings.h \
  /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
  /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
@@ -181,6 +103,12 @@ dep_main.o = /home/switch/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /usr/include/x86_64-linux-gnu/bits/sigthread.h \
  /usr/lib/gcc/x86_64-linux-gnu/7/include/stdbool.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_common.h \
+ /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/limits.h \
+ /usr/lib/gcc/x86_64-linux-gnu/7/include-fixed/syslimits.h \
+ /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/local_lim.h \
+ /usr/include/linux/limits.h \
+ /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_config.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_log.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_malloc.h \
