@@ -206,15 +206,21 @@ static uint64_t timer_period = 10; /* default period is 10 seconds */
 static void
 l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 {
+	printf("lerr0\n");
 	struct rte_eth_dev_tx_buffer *buffer;
 	if(status->status >= 1) //Send packet to dst port.
 	{
+		printf("lerr1\n");
 		buffer = tx_buffer[status->dstport];
-		rte_eth_tx_buffer(status->dstport, 0, buffer, m);
-		rte_eth_tx_buffer_flush(status->dstport, 0, buffer);
+		printf("lerr2\n");
+		int buf0 = rte_eth_tx_buffer(status->dstport, 0, buffer, m);
+		printf("lerr3 buffsize:%d, dstport:%d buf0:%d\n",buffer->length, status->dstport,buf0);
+		printf("%s\n", rte_strerror(rte_errno));
+		printf("lerr4 buf1:%d\n",rte_eth_tx_buffer_flush(status->dstport, 0, buffer));
 	}
 	else if(status->status == 0) //Flood the packet out to all ports
 	{
+		printf("lerr5\n");
 		for (int port = 0; port < rte_eth_dev_count(); port++)
 		{
 			if(port!=status->srcport)
@@ -296,6 +302,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 					struct ether_addr s_addr;
 					rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
 					//Allocate payload buffer
+					printf("Here1\n");
 					struct rte_mbuf* rte_mbuf_payload = rte_pktmbuf_alloc(codingmbuf_pool);
 					uint8_t* payload = rte_pktmbuf_mtod(rte_mbuf_payload, void *);
 
@@ -308,6 +315,8 @@ net_encode(kodoc_factory_t *encoder_factory)
 					{
 						rte_memcpy(genID,payload,GENID_LEN);
 					}
+
+
 
 					//Create mbuf for encoded reply
 					struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
@@ -322,9 +331,12 @@ net_encode(kodoc_factory_t *encoder_factory)
 					encoded_data = rte_memcpy(encoded_data+sizeof(genID),payload,MAX_SYMBOL_SIZE); //Add payload
 
 					struct dst_addr_status status = dst_mac_status(encoded_mbuf, 0);
+					printf("Here2\n");
 				  	l2fwd_learning_forward(encoded_mbuf, &status);
+				  	printf("Here3\n");
 				  	rte_pktmbuf_free(encoded_mbuf);
 					rte_pktmbuf_free(rte_mbuf_payload);
+					printf("Here4\n\n");
 				}
 
 				rte_pktmbuf_free(rte_mbuf_data_in);
