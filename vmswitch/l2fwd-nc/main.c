@@ -90,6 +90,8 @@
 #define GENID_LEN 8
 #define ETHER_TYPE_LEN 2
 
+uint32_t gentable_size = 0;
+
 #define STATIC 0
 #define DYNAMIC 1
 static unsigned mac_counter = 0;
@@ -311,9 +313,15 @@ net_encode(kodoc_factory_t *encoder_factory)
 
 					//Use first symbol payload "random data" for generationID
 					//Instead generate random array of characters. 
-					if(pkt == 0)
+					//Create generationID 
+					char genID[GENID_LEN];
+					if(pkt == 0) //Create genID only
 					{
-						rte_memcpy(genID,payload,GENID_LEN);
+						int genChar;
+						for(genChar=0;genChar<GENID_LEN;genChar++)
+						{
+							genID[genChar] = 'A' + (random() % 26);
+						}
 					}
 
 					//Create mbuf for encoded reply
@@ -336,6 +344,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 
 				rte_pktmbuf_free(rte_mbuf_data_in);
 				kodoc_delete_coder(encoder);
+				//rte_ring_free(&encoding_rings[i]);
 			}
 			else
 			{
@@ -352,103 +361,112 @@ net_decode(kodoc_factory_t *decoder_factory)
 	for(uint i=0;i<genIDcounter;i++)
 	{
 		struct rte_ring* decoding_ring = rte_ring_lookup(genID_table[i].ID);
-		if(rte_ring_count(decoding_ring)>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
+		if(decoding_ring!=NULL)
 		{
-			//Begin decoding on rings.
-			uint* obj_left = 0;
-			//rte_mbuf to hold the dequeued data.
-			struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
-			int obj_dequeued = rte_ring_dequeue_bulk(decoding_ring,(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
-			if(obj_dequeued>=(int)MAX_SYMBOLS-1)
+			if(rte_ring_count(decoding_ring)>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
 			{
-				printf("Decoding..\n");
-
-				//Create decoder
-				kodoc_coder_t decoder = kodoc_factory_build_coder(*decoder_factory);
-				//Create Data buffers
-				uint32_t block_size = kodoc_block_size(decoder);
-
-				struct rte_mbuf* rte_mbuf_data_out = rte_pktmbuf_alloc(codingmbuf_pool);
-
-				uint8_t* data_out = rte_pktmbuf_mtod(rte_mbuf_data_out, void *);
-
-				//Specifies the data buffer where the decoder will store the decoded symbol.
-				kodoc_set_mutable_symbols(decoder , data_out, block_size);
-
-				//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
-				uint pkt=0;
-				while (!kodoc_is_complete(decoder) && (pkt < MAX_SYMBOLS))
+				//Begin decoding on rings.
+				uint* obj_left = 0;
+				//rte_mbuf to hold the dequeued data.
+				struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
+				int obj_dequeued = rte_ring_dequeue_bulk(decoding_ring,(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
+				if(obj_dequeued>=(int)MAX_SYMBOLS-1)
 				{
-					//Get recieved packet
-					struct rte_mbuf *m = dequeued_data[pkt++];
-					const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+					printf("Decoding..\n");
+					//Create decoder
+					kodoc_coder_t decoder = kodoc_factory_build_coder(*decoder_factory);
+					//Create Data buffers
+					uint32_t block_size = kodoc_block_size(decoder);
 
-					struct rte_mbuf* rte_mbuf_payload = rte_pktmbuf_alloc(codingmbuf_pool);
-					uint8_t* payload = rte_pktmbuf_mtod(rte_mbuf_payload, void *);
+					struct rte_mbuf* rte_mbuf_data_out = rte_pktmbuf_alloc(codingmbuf_pool);
 
-					int rank  = kodoc_rank(decoder);
+					uint8_t* data_out = rte_pktmbuf_mtod(rte_mbuf_data_out, void *);
 
-					//Fill payload to decode, with data.
-					for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
+					//Specifies the data buffer where the decoder will store the decoded symbol.
+					kodoc_set_mutable_symbols(decoder , data_out, block_size);
+
+					//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
+					uint pkt=0;
+					while (!kodoc_is_complete(decoder) && (pkt < MAX_SYMBOLS))
 					{
-						if(j<rte_pktmbuf_data_len(m))
+						//Get recieved packet
+						struct rte_mbuf *m = dequeued_data[pkt++];
+						const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+						struct rte_mbuf* rte_mbuf_payload = rte_pktmbuf_alloc(codingmbuf_pool);
+						uint8_t* payload = rte_pktmbuf_mtod(rte_mbuf_payload, void *);
+
+						int rank  = kodoc_rank(decoder);
+
+						//Fill payload to decode, with data.
+						for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
 						{
-							payload[j] = (uint8_t)data[j+ETHER_HDR_LEN+GENID_LEN]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
+							if(j<rte_pktmbuf_data_len(m))
+							{
+								payload[j] = (uint8_t)data[j+ETHER_HDR_LEN+GENID_LEN]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
+							}
+							else
+							{
+								payload[j] = 0; //Pad with zeros after payload
+							}
 						}
-						else
-						{
-							payload[j] = 0; //Pad with zeros after payload
-						}
+
+						//Pass payload to decoder
+						kodoc_read_payload(decoder,payload);
+
+						//Decoder rank indicates how many symbols have been decoded.
+						printf("Payload processed by decoder, current rank = %d\n", rank);
+						rte_pktmbuf_free(rte_mbuf_payload);
 					}
 
-					//Pass payload to decoder
-					kodoc_read_payload(decoder,payload);
+					uint8_t* pkt_ptr = data_out;
+					for(uint pkt=0;pkt<MAX_SYMBOLS-1;pkt++) //Get decoded packets from data_out and send those out again. Resultant packets are systematic.
+					{
+						//Stores each packet from data_out
+						//Get recieved packet
+						struct rte_mbuf *m = dequeued_data[pkt];
+						const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+						
+						//Get ethernet dst and src
+						struct ether_addr d_addr;
+						rte_memcpy(d_addr.addr_bytes,data,ETHER_ADDR_LEN);
+						struct ether_addr s_addr;
+						rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
 
-					//Decoder rank indicates how many symbols have been decoded.
-					printf("Payload processed by decoder, current rank = %d\n", rank);
-					rte_pktmbuf_free(rte_mbuf_payload);
+						//Create mbuf for decoded reply
+					  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+						char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
+						struct ether_hdr eth_hdr = {
+							d_addr, //Same as incoming source addr.
+							s_addr, //Port mac address
+							(pkt_ptr[0] | ((pkt_ptr[1]) << 8)) //Ether_type from decoded packet.
+						};	
+						decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
+						rte_memcpy(decoded_data+ETHER_HDR_LEN-ETHER_TYPE_LEN,pkt_ptr,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
+						
+						struct dst_addr_status status = dst_mac_status(decoded_mbuf, 0);
+					  	l2fwd_learning_forward(decoded_mbuf, &status);
+
+					  	rte_pktmbuf_free(decoded_mbuf);
+
+					  	//Advance pointer to next decoded data of packet in data_out.
+					  	pkt_ptr += MAX_SYMBOL_SIZE;
+					  }
+
+					rte_pktmbuf_free(rte_mbuf_data_out);
+					//Remove generationID from table.
+					uint genIndex;
+					for(genIndex=i-1;genIndex<genIDcounter-1;genIndex++)//i is the position to remove the genID at.
+					{
+						genID_table[genIndex] = genID_table[genIndex+1]; 
+					}
+					genIDcounter--;
+					//Free decoder.
+					kodoc_delete_coder(decoder);
 				}
-
-				uint8_t* pkt_ptr = data_out;
-				for(uint pkt=0;pkt<MAX_SYMBOLS-1;pkt++) //Get decoded packets from data_out and send those out again. Resultant packets are systematic.
-				{
-					//Stores each packet from data_out
-					//Get recieved packet
-					struct rte_mbuf *m = dequeued_data[pkt];
-					const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-					
-					//Get ethernet dst and src
-					struct ether_addr d_addr;
-					rte_memcpy(d_addr.addr_bytes,data,ETHER_ADDR_LEN);
-					struct ether_addr s_addr;
-					rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
-
-					//Create mbuf for decoded reply
-				  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-					char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
-					struct ether_hdr eth_hdr = {
-						d_addr, //Same as incoming source addr.
-						s_addr, //Port mac address
-						(pkt_ptr[0] | ((pkt_ptr[1]) << 8)) //Ether_type from decoded packet.
-					};	
-					decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
-					rte_memcpy(decoded_data+ETHER_HDR_LEN-ETHER_TYPE_LEN,pkt_ptr,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
-					
-					struct dst_addr_status status = dst_mac_status(decoded_mbuf, 0);
-				  	l2fwd_learning_forward(decoded_mbuf, &status);
-
-				  	rte_pktmbuf_free(decoded_mbuf);
-
-				  	//Advance pointer to next decoded data of packet in data_out.
-				  	pkt_ptr += MAX_SYMBOL_SIZE;
-				  }
-
-				rte_pktmbuf_free(rte_mbuf_data_out);
-				//Flush generationID from table by decreasing generation counter.
-				genIDcounter--;
-				kodoc_delete_coder(decoder);
-			}
-		}	
+				rte_ring_free(decoding_ring);
+			}	
+		}
 	}
 }
 
@@ -482,7 +500,8 @@ update_settings(void)
 		if(config_lookup_int(&cfg,"general_settings.MAC_ENTRIES",&setting))
 		{
 			mac_fwd_table = calloc(setting,setting * sizeof(struct mac_table_entry));
-			genID_table = calloc(setting,setting * sizeof(struct generationID));
+			gentable_size = setting;
+			genID_table = calloc(gentable_size,gentable_size * sizeof(struct generationID));
 			//Allocate memory for encoding rings equal to MAC table size.
 			encoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
 		}
@@ -537,22 +556,37 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 			in_table = 1;
 		}
 	}
-	if(in_table == 0)
+	if(in_table == 0) //GEN_ID not in table, so make new ring for decoded packets.
 	{
 		//Add genID to table.
 		rte_memcpy(genID_table[genIDcounter].ID,generationID,GENID_LEN);
 		//Create decoder queue for newly received generationID	
-		rte_ring_create(genID_table[genIDcounter].ID,MAX_SYMBOLS,SOCKET_ID_ANY,0);
-		genIDcounter++;
+		char ring_name[GENID_LEN];
+		sprintf(ring_name,"%s",genID_table[genIDcounter].ID);
+		struct rte_ring *new_ring = rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+		
+		//Dump ring status to file.
+		FILE *mbuf_file;
+		mbuf_file = fopen("rings.txt","a");
+		rte_ring_list_dump(mbuf_file);
+		fclose(mbuf_file);
 
-		printf("GEN TABLE UPDATED:\n");
-		for(uint i=0;i<genIDcounter;i++)
+		printf("%s\n", rte_strerror(rte_errno));
+
+		if(new_ring!=NULL)
 		{
-			for(uint j = 0;j<GENID_LEN;j++)
+			printf("genIDcounter %d\n",genIDcounter);
+			printf("GEN TABLE UPDATED:\n");
+			for(uint i=0;i<=genIDcounter;i++)
 			{
-				printf("%02X ",genID_table[i].ID[j]);
+				for(uint j = 0;j<GENID_LEN;j++)
+				{
+					printf("%02X ",genID_table[i].ID[j]);
+				}
+				printf("\n");
 			}
-			printf("\n");
+
+			genIDcounter++;
 		}
 	}
 }
@@ -609,6 +643,12 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 
 		//Increment MAC counter.
 		mac_counter++;
+
+		//TEMP set to 20 as mac table size
+		if(mac_counter>=20)
+		{
+			mac_counter=0;
+		}
 
 		//Print updated MAC table to Console.
 		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR             TYPE PORT CODING_CAPABLE\n");
@@ -764,17 +804,14 @@ l2fwd_main_loop(void)
 						if(ether_type == 0x2020) //Go to decode(2).
 						{
 							printf("Decode\n");
-
 							//Get genID from encoded packet.
 							char genID[GENID_LEN];
 							rte_memcpy(genID,&data[14],GENID_LEN);
 
 							//Check if genID is in genTable
 							genID_in_genTable(genID);
-
 							//Add packet to decoding ring
 							rte_ring_enqueue(rte_ring_lookup(genID),(void *)m);
-
 							//Call decoder
 							net_decode(&decoder_factory);
 						}

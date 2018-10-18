@@ -49,7 +49,7 @@ CFLAGS += -I/home/switch/kodo-c/shared_kodoc/include
 # List of libraries to link with
 LDLIBS += -L/home/switch/kodo-c/shared_kodoc -Bdynamic -lkodoc -lstdc++ -rpath=/home/switch/kodo-c/shared_kodoc -lconfig -lsodium
 
-CFLAGS += -O3
+CFLAGS += -O0 -g
 CFLAGS += $(WERROR_FLAGS)
 
 include $(RTE_SDK)/mk/rte.extapp.mk
