@@ -212,4 +212,6 @@ dep_main.o = /home/switch/l2fwd-nc/main.c /usr/include/stdc-predef.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_ether.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_eth_ctrl.h \
  /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_dev_info.h \
+ /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_hash.h \
+ /opt/dpdk-stable-17.11.3/x86_64-native-linuxapp-gcc/include/rte_jhash.h \
  /home/switch/l2fwd-nc/main.h

@@ -79,9 +79,18 @@
 #include <rte_ethdev.h>
 #include <rte_mempool.h>
 #include <rte_mbuf.h>
+#include <rte_hash.h>
+#include <rte_jhash.h>
 
 //Added by DD.
 #include "main.h"
+
+//IGMP (Internet Group Managment Protocol) Snooping
+#define IGMP_SNOOP_MEMBSHP_QUERY 0x11
+#define IGMP_SNOOP_MEMBSHP_REPORT_V1 0x12
+#define IGMP_SNOOP_MEMBSHP_REPORT_V2 0x16
+#define IGMP_SNOOP_MEMBSHP_REPORT_V3 0x22
+#define IGMP_SNOOP_MEMBSHP_LEAVE 0x17 
 
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
@@ -96,6 +105,8 @@ uint32_t gentable_size = 0;
 #define DYNAMIC 1
 static unsigned mac_counter = 0;
 static unsigned genIDcounter = 0;
+static unsigned mltcst_counter = 0;
+
 struct mac_table_entry {
 	unsigned vlan;
 	struct ether_addr d_addr;
@@ -110,6 +121,14 @@ struct generationID {
 };
 struct generationID *genID_table;
 
+struct multicast_table_entry {
+	uint8_t grp_addr[4];
+	struct ether_addr s_addr;
+	unsigned port;
+	unsigned coding_capable;
+};
+struct multicast_table_entry *mltcst_fwd_tbl;
+
 //Pointer to all dst_add ring structs. 
 struct rte_ring *encoding_rings;
 
@@ -121,7 +140,7 @@ static struct rte_eth_link l2fwd_nc_links[RTE_MAX_ETHPORTS];
 static struct rte_eth_stats l2fwd_nc_dev_stats[RTE_MAX_ETHPORTS]; 
 //Struct for dst_addr status
 struct dst_addr_status {
-	int status; //The status of the dst_addr. Either 0,1 or 2 for not_found,found and found + coding capable.
+	int status; //The status of the dst_addr. Either 0,1 or 2 for not_found,found and found + coding capable. 3 Is multicast traffic. 4 is multicast + coding capable.
 	int table_index; //The index of the dst_addr on the table.
 	int dstport; //The #ID of the dst_addr port. 
 	int srcport; //The #ID of the in port.
@@ -212,7 +231,21 @@ static void
 l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 {
 	struct rte_eth_dev_tx_buffer *buffer;
-	if(status->status >= 1) //Send packet to dst port.
+	if(status->status >= 3) //Multicast packet to dst ports.
+	{
+		const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Packet data to get grp_addr.
+		for (uint i = 0; i < mltcst_counter; i++)
+		{
+			int port = mltcst_fwd_tbl[i].port;
+			if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+30,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
+			{
+				buffer = tx_buffer[port];
+				rte_eth_tx_buffer(port, 0, buffer, m);
+				rte_eth_tx_buffer_flush(port, 0, buffer);
+			}
+		}
+	}
+	else if(status->status >= 1) //Send packet to dst port.
 	{
 		buffer = tx_buffer[status->dstport];
 		rte_eth_tx_buffer(status->dstport, 0, buffer, m);
@@ -253,9 +286,6 @@ net_encode(kodoc_factory_t *encoder_factory)
 			if(rte_ring_dequeue_bulk(&encoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>0) //Checks if dequeued correctly.
 			{
 				printf("Encoding..\n");
-
-				//Create generationID 
-				char genID[GENID_LEN];
 
 				kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
 
@@ -504,6 +534,9 @@ update_settings(void)
 			genID_table = calloc(gentable_size,gentable_size * sizeof(struct generationID));
 			//Allocate memory for encoding rings equal to MAC table size.
 			encoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
+			//Table for IGMP multicast cache table. 
+			mltcst_fwd_tbl = calloc(setting,setting * sizeof(struct multicast_table_entry));;
+
 		}
 		if(config_lookup_int(&cfg,"general_settings.NB_MBUF",&setting))
 		{
@@ -592,7 +625,8 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 }
 
 //Check if dst_addr exists, otherwise adds it to the MAC table. 1 if it exits, 2 if it exists and is coding capable, and 0 if it doesnt exist.
-static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
+static struct 
+dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 {
 	//Get recieved packet
 	const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
@@ -605,33 +639,183 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 
 	status.dstport = -1;
 	status.srcport = srcport;
-
+	status.status = 0;
 	unsigned mac_add = 0; //Add src mac to table.
-	unsigned mac_dst_found = 0; //DST MAC not found by default.
-	for (int i=0;i<MAC_ENTRIES;i++)
-	{
-		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if table contains src address.
-		{
-			mac_add = 1; //Dont add mac address as it is already in the table.
-		}
 
-		if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) //Check if table contains dst address.
+	//Check if Multicast traffic or normal.
+	uint8_t multicast_mac[3] = {0x01,0x00,0x5E};
+
+	//First check if packet is multicast traffic. First 3 bytes must be 01:00:5E of dst MAC addr.
+	if(memcmp(d_addr.addr_bytes,multicast_mac,3)==0)
+	{
+		printf("MLTICST\n");
+
+		//IGMP Snooping based on the guidelines of RFC 4541. Modified for testing purposes. Not to full spec.. Local LAN only. No routing support.
+		//Check if IGMP multicast or multicast data traffic.
+		if(data[38] == 0x22) //IGMP Forwarding (Control) L3.
 		{
-			mac_dst_found = 1; //Not coding capable.
-			if(mac_fwd_table[i].coding_capable == 1)
+			//Check if INLCUDE or EXCLUDE
+			if(data[46]== 0x03) //To INCLUDE 0 sources. SO do no receive traffic.
 			{
-				mac_dst_found = 2; //Coding capable.
+				//Remove Port from multicast forward.
+				for (int i=0;i<MAC_ENTRIES;i++)
+				{
+					if(memcmp(mltcst_fwd_tbl[i].s_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes))==0)
+					{
+						if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+50,sizeof(mltcst_fwd_tbl[i].grp_addr))==0)
+						{
+							//Reset entry
+							memset(&mltcst_fwd_tbl[i], 0, sizeof(struct multicast_table_entry));
+
+							for(uint j=i;j<MAC_ENTRIES-1;j++)
+							{
+								mltcst_fwd_tbl[j] = mltcst_fwd_tbl[j+1];
+							}
+
+							mltcst_counter--;
+
+							printf("\nUpdated Mltcst TABLE\n");
+							for(uint i=0;i<=mltcst_counter;i++)
+							{
+								if(mltcst_fwd_tbl[i].s_addr.addr_bytes[0] != 0)
+								{
+									for (uint j = 0; j < sizeof(mltcst_fwd_tbl[i].grp_addr); ++j)
+									{
+										printf("%02x:", mltcst_fwd_tbl[i].grp_addr[j]);
+									}
+									printf("  ");
+									for (uint j = 0; j < sizeof(mltcst_fwd_tbl[i].s_addr.addr_bytes); ++j)
+									{
+										printf("%02x:", mltcst_fwd_tbl[i].s_addr.addr_bytes[j]);
+									}
+								}
+								printf("\n");
+							}
+						}
+					}
+				}
+			}	
+			else if(data[46]== 0x04) //To EXLUDE 0 sources. SO do receive traffic.
+			{
+				//Add Port for multicast forward.
+				//Loop through multicast table and check if entry exists first.
+				uint8_t in_mltcst_table = 0;
+				for (int i=0;i<MAC_ENTRIES;i++)
+				{
+					if(memcmp(mltcst_fwd_tbl[i].s_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes))==0)
+					{
+						if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+50,sizeof(mltcst_fwd_tbl[i].grp_addr))==0)
+						{
+							printf("exists\n");
+							in_mltcst_table = 1;
+							break;
+						}
+					}
+				}
+				if(in_mltcst_table==0)
+				{
+					//Add to multicast table.
+					rte_memcpy(mltcst_fwd_tbl[mltcst_counter].grp_addr,data+50,sizeof(mltcst_fwd_tbl[mltcst_counter].grp_addr));
+					mltcst_fwd_tbl[mltcst_counter].s_addr = s_addr;
+					mltcst_fwd_tbl[mltcst_counter].port = srcport;
+					mltcst_fwd_tbl[mltcst_counter].coding_capable = 1; //TEMP set coding capable to all multicast traffic.
+
+					mltcst_counter++;
+
+					printf("\nUpdated Mltcst TABLE\n");
+					for(uint i=0;i<mltcst_counter;i++)
+					{
+						if(mltcst_fwd_tbl[i].s_addr.addr_bytes[0] != 0)
+						{
+							for (uint j = 0; j < sizeof(mltcst_fwd_tbl[i].grp_addr); ++j)
+							{
+								printf("%02x:", mltcst_fwd_tbl[i].grp_addr[j]);
+							}
+							printf("  ");
+							for (uint j = 0; j < sizeof(mltcst_fwd_tbl[i].s_addr.addr_bytes); ++j)
+							{
+								printf("%02x:", mltcst_fwd_tbl[i].s_addr.addr_bytes[j]);
+							}
+						}
+						printf("\n");
+					}
+				}
 			}
-			status.table_index = i;
-			status.dstport = mac_fwd_table[i].port;
+
+			status.status = 0;
+		}
+		else //Data Forwarding (Data)
+		{
+			//Check if dst_ip inside or outside of 244.0.0.X range.
+			if(data[4] != 0) //Out of 244.0.0.X and not IGMP
+			{
+				//Forward according to group-based port membership tables and forward on router ports. 
+				//Add to encoding ring.
+				for (int i=0;i<MAC_ENTRIES;i++)
+				{					
+					if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+30,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
+					{
+						status.status = 3;
+						if(network_coding== 1)
+						{
+							status.status = 4; //Coding capable. TEMP, change back to 4
+						}
+						break;
+					}
+					else
+					{
+						status.status = -1;
+					}	
+
+					if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if dst_addr has been seen before
+					{
+						mac_add = 1; //Dont add mac address as it is already in the table.
+					}			
+				}
+				printf("%d\n", status.status);
+
+			}
+			else //In 244.0.0.X and not IGMP
+			{
+				//Forward on all ports. I.e flood traffic.
+				status.status = 0;
+			}
+		}
+	}
+	else
+	{
+		for (int i=0;i<MAC_ENTRIES;i++)
+		{
+			if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,s_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if table contains src address.
+			{
+				mac_add = 1; //Dont add mac address as it is already in the table.
+			}
+
+			if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(d_addr.addr_bytes)) == 0) //Check if table contains dst address.
+			{
+				status.status = 1; //Not coding capable.
+				if(mac_fwd_table[i].coding_capable == 1)
+				{
+					status.status = 2; //Coding capable.
+				}
+				status.table_index = i;
+				status.dstport = mac_fwd_table[i].port;
+			}
 		}
 	}
 
-
-	if(unlikely(mac_add == 0)) //Add MAC address to MAC table.
+	//Add MAC address to MAC table.
+	if(unlikely(mac_add == 0))
 	{
 		mac_fwd_table[mac_counter].vlan = 0;
-		mac_fwd_table[mac_counter].d_addr = s_addr;
+		if(memcmp(d_addr.addr_bytes,multicast_mac,3)==0) //If mltcst then add dst_add to table
+		{
+			mac_fwd_table[mac_counter].d_addr = d_addr;
+		}
+		else
+		{
+			mac_fwd_table[mac_counter].d_addr = s_addr;
+		}
 		mac_fwd_table[mac_counter].type = DYNAMIC;
 		mac_fwd_table[mac_counter].port = srcport;
 		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
@@ -643,12 +827,6 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 
 		//Increment MAC counter.
 		mac_counter++;
-
-		//TEMP set to 20 as mac table size
-		if(mac_counter>=20)
-		{
-			mac_counter=0;
-		}
 
 		//Print updated MAC table to Console.
 		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR             TYPE PORT CODING_CAPABLE\n");
@@ -664,10 +842,9 @@ static struct dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcpor
 				printf(" %u    %u         %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
 			}
 		}
+		status.status = 0;
 	}
 
-
-	status.status = mac_dst_found;
 	return status;
 }
 
@@ -780,7 +957,7 @@ l2fwd_main_loop(void)
 					//Determine if packet must be encoded (1), decoded (2), recoded (3) or sent to nocode (normal forwarding) (4).
 					//Encoded, Decoded and Recoded algorithms will send to normal forwarding once complete. i.e 4 possible directions.
 
-					if(status.status == 2) //Go to encode(1) or recode(3).
+					if(status.status == 2 || status.status == 4) //Go to encode(1) or recode(3).
 					{
 						//Check if packet is encoded (NC type).
 						if(ether_type == 0x2020) //Go to recode()3.
@@ -824,6 +1001,7 @@ l2fwd_main_loop(void)
 				}	
 				else //Operate like a normal learning switch.
 				{
+					printf("Nocode\n");
 					l2fwd_learning_forward(m, &status);
 				}
 			}
@@ -1263,6 +1441,14 @@ main(int argc, char **argv)
 		//Increment MAC counter.
 		mac_counter++;
 	}
+
+	//Also create rte_ring for encoding queue, for each new MAC entry.
+	char ring_name[30];
+	sprintf(ring_name,"encoding_ring%d",mac_counter);
+	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+
+	//Increment MAC counter.
+	mac_counter++;
 
 	ret = 0;
 	/* launch per-lcore init on every lcore */
