@@ -237,8 +237,9 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 		for (uint i = 0; i < mltcst_counter; i++)
 		{
 			int port = mltcst_fwd_tbl[i].port;
-			if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+30,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
+			if((mltcst_fwd_tbl[i].grp_addr[2] == *(data+4)) && (mltcst_fwd_tbl[i].grp_addr[3] == *(data+5))) //Check if grp_addr in table.
 			{
+				printf("fwd mltcst\n");
 				buffer = tx_buffer[port];
 				rte_eth_tx_buffer(port, 0, buffer, m);
 				rte_eth_tx_buffer_flush(port, 0, buffer);
@@ -635,6 +636,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 	rte_memcpy(d_addr.addr_bytes,data,ETHER_ADDR_LEN);
 	struct ether_addr s_addr;
 	rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
+
 	struct dst_addr_status status;
 
 	status.dstport = -1;
@@ -688,6 +690,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 									{
 										printf("%02x:", mltcst_fwd_tbl[i].s_addr.addr_bytes[j]);
 									}
+									printf(" %d",mltcst_fwd_tbl[i].port);
 								}
 								printf("\n");
 							}
@@ -742,10 +745,14 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 				}
 			}
 
-			status.status = 0;
+			status.status = 0; //Flood IGMP traffic out all ports. Should be all router ports but this use case is not as complicated.
 		}
 		else //Data Forwarding (Data)
 		{
+			struct ether_addr grp_addr;
+			uint8_t grp_data[6] = {0xe0,0x00,data[4],data[5],0,0};
+			rte_memcpy(grp_addr.addr_bytes,grp_data,ETHER_ADDR_LEN);
+
 			//Check if dst_ip inside or outside of 244.0.0.X range.
 			if(data[4] != 0) //Out of 244.0.0.X and not IGMP
 			{
@@ -753,26 +760,30 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 				//Add to encoding ring.
 				for (int i=0;i<MAC_ENTRIES;i++)
 				{					
-					if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+30,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
+					if(memcmp(mltcst_fwd_tbl[i].grp_addr,grp_addr.addr_bytes,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
 					{
 						status.status = 3;
 						if(network_coding== 1)
 						{
 							status.status = 4; //Coding capable. TEMP, change back to 4
 						}
-						break;
+						status.table_index = i;
 					}
-					else
-					{
-						status.status = -1;
-					}	
 
-					if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,d_addr.addr_bytes,sizeof(s_addr.addr_bytes)) == 0) //Check if dst_addr has been seen before
+					//Check if in MAC_table as well for encoding queues.
+					//Check if MAC table contains grp address.
+					if(memcmp(mac_fwd_table[i].d_addr.addr_bytes,grp_addr.addr_bytes,sizeof(mltcst_fwd_tbl[i].grp_addr)) == 0)
 					{
 						mac_add = 1; //Dont add mac address as it is already in the table.
-					}			
+					}	
 				}
-				printf("%d\n", status.status);
+
+				if(unlikely(mac_add==0))
+				{
+					add_mac_addr(grp_addr,srcport);
+				}
+
+				printf("status %d\n", status.status);
 
 			}
 			else //In 244.0.0.X and not IGMP
@@ -802,50 +813,55 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 				status.dstport = mac_fwd_table[i].port;
 			}
 		}
-	}
 
-	//Add MAC address to MAC table.
-	if(unlikely(mac_add == 0))
-	{
-		mac_fwd_table[mac_counter].vlan = 0;
-		if(memcmp(d_addr.addr_bytes,multicast_mac,3)==0) //If mltcst then add dst_add to table
+		if(unlikely(mac_add==0))
 		{
-			mac_fwd_table[mac_counter].d_addr = d_addr;
+			add_mac_addr(s_addr,srcport);
 		}
-		else
-		{
-			mac_fwd_table[mac_counter].d_addr = s_addr;
-		}
-		mac_fwd_table[mac_counter].type = DYNAMIC;
-		mac_fwd_table[mac_counter].port = srcport;
-		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
-
-		//Also create rte_ring for encoding queue, for each new MAC entry.
-		char ring_name[30];
-		sprintf(ring_name,"encoding_ring%d",mac_counter);
-		encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
-
-		//Increment MAC counter.
-		mac_counter++;
-
-		//Print updated MAC table to Console.
-		printf("\nUpdated MAC TABLE.\nVLAN D_ADDR             TYPE PORT CODING_CAPABLE\n");
-		for(uint i=0;i<mac_counter;i++)
-		{
-			if(mac_fwd_table[i].d_addr.addr_bytes[0] != 0)
-			{
-				printf("%u    ", mac_fwd_table[i].vlan);
-				for (uint j = 0; j < sizeof(mac_fwd_table[i].d_addr.addr_bytes); ++j)
-				{
-					printf("%02x:", mac_fwd_table[i].d_addr.addr_bytes[j]);
-				}
-				printf(" %u    %u         %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
-			}
-		}
-		status.status = 0;
 	}
 
 	return status;
+}
+
+static void add_mac_addr(struct ether_addr addr, unsigned srcport)
+{
+	mac_fwd_table[mac_counter].vlan = 0;
+	mac_fwd_table[mac_counter].d_addr = addr;
+	mac_fwd_table[mac_counter].type = DYNAMIC;
+	mac_fwd_table[mac_counter].port = srcport;
+	mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
+
+	//Also create rte_ring for encoding queue, for each new MAC entry.
+	char ring_name[30];
+	sprintf(ring_name,"encoding_ring%d",mac_counter);
+	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+
+	//Increment MAC counter.
+	mac_counter++;
+
+	//Print updated MAC table to Console.
+	printf("\nUpdated MAC TABLE.\nVLAN D_ADDR             TYPE PORT CODING_CAPABLE\n");
+	for(uint i=0;i<mac_counter;i++)
+	{
+		if(mac_fwd_table[i].d_addr.addr_bytes[0] != 0)
+		{
+			printf("%u    ", mac_fwd_table[i].vlan);
+			for (uint j = 0; j < sizeof(mac_fwd_table[i].d_addr.addr_bytes); ++j)
+			{
+				printf("%02x:", mac_fwd_table[i].d_addr.addr_bytes[j]);
+			}
+			printf(" %u    %u         %u\n", mac_fwd_table[i].type,mac_fwd_table[i].port,mac_fwd_table[i].coding_capable);
+		}
+	}
+}
+
+static void rm_mac_addr(struct rte_mbuf *m)
+{
+	//Get recieved packet
+	const unsigned char* data = rte_pktmbuf_mtod(m, void *);
+	//Get ethernet dst
+	struct ether_addr d_addr;
+	rte_memcpy(d_addr.addr_bytes,data,ETHER_ADDR_LEN);
 }
 
 /* main processing loop */
