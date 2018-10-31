@@ -94,7 +94,7 @@
 
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
-#define MAC_ENTRIES 20
+#define MAC_ENTRIES 200
 #define ENCODING_RINGS 20
 #define GENID_LEN 8
 #define ETHER_TYPE_LEN 2
@@ -107,6 +107,7 @@ static unsigned mac_counter = 0;
 static unsigned genIDcounter = 0;
 static unsigned mltcst_counter = 0;
 
+//MAC, genID and multicast tables.
 struct mac_table_entry {
 	unsigned vlan;
 	struct ether_addr d_addr;
@@ -160,10 +161,6 @@ static uint32_t finite_field = kodoc_binary8;
 int pktscnt = 0;
 
 static volatile bool force_quit;
-
-/* MAC updating enabled by default */
-// MAC updating disabled
-/*static int mac_updating = 0;*/
 
 #define RTE_LOGTYPE_L2FWD RTE_LOGTYPE_USER1
 
@@ -234,15 +231,18 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 	if(status->status >= 3) //Multicast packet to dst ports.
 	{
 		const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Packet data to get grp_addr.
-		for (uint i = 0; i < mltcst_counter; i++)
+		for (uint port = 0; port < rte_eth_dev_count(); port++)
 		{
-			int port = mltcst_fwd_tbl[i].port;
-			if((mltcst_fwd_tbl[i].grp_addr[2] == *(data+4)) && (mltcst_fwd_tbl[i].grp_addr[3] == *(data+5))) //Check if grp_addr in table.
+			for (uint i = 0; i < mltcst_counter; i++)
 			{
-				printf("fwd mltcst\n");
-				buffer = tx_buffer[port];
-				rte_eth_tx_buffer(port, 0, buffer, m);
-				rte_eth_tx_buffer_flush(port, 0, buffer);
+				if((mltcst_fwd_tbl[i].grp_addr[2] == *(data+4)) && (mltcst_fwd_tbl[i].grp_addr[3] == *(data+5)) && port == mltcst_fwd_tbl[i].port) //Check if grp_addr in table.
+				{
+					printf("fwd mltcst %d\n",port);
+					buffer = tx_buffer[port];
+					rte_eth_tx_buffer(port, 0, buffer, m);
+					rte_eth_tx_buffer_flush(port, 0, buffer);
+					break; //Prevents the multiple packets out the same port for each indv source entry.
+				}
 			}
 		}
 	}
@@ -271,6 +271,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 		}
 	}
 }
+
 
 static void 
 net_encode(kodoc_factory_t *encoder_factory)
@@ -357,7 +358,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 
 					//Create mbuf for encoded reply
 					struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-					char* encoded_data = rte_pktmbuf_append(encoded_mbuf,rte_pktmbuf_data_len(m));
+					char* encoded_data = rte_pktmbuf_append(encoded_mbuf,rte_pktmbuf_data_len(m)+12);
 					struct ether_hdr eth_hdr = {	
 						d_addr, //Same as incoming source addr.
 						s_addr, //Port mac address
@@ -401,6 +402,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 				//rte_mbuf to hold the dequeued data.
 				struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
 				int obj_dequeued = rte_ring_dequeue_bulk(decoding_ring,(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
+
 				if(obj_dequeued>=(int)MAX_SYMBOLS-1)
 				{
 					printf("Decoding..\n");
@@ -418,7 +420,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 
 					//Loop through each packet in the queue. In the future, it would be better to encode as a group using pointers instead.
 					uint pkt=0;
-					while (!kodoc_is_complete(decoder) && (pkt < MAX_SYMBOLS))
+					while (!kodoc_is_complete(decoder))
 					{
 						//Get recieved packet
 						struct rte_mbuf *m = dequeued_data[pkt++];
@@ -485,13 +487,26 @@ net_decode(kodoc_factory_t *decoder_factory)
 					  }
 
 					rte_pktmbuf_free(rte_mbuf_data_out);
+
 					//Remove generationID from table.
-					uint genIndex;
-					for(genIndex=i-1;genIndex<genIDcounter-1;genIndex++)//i is the position to remove the genID at.
+					for(uint genIndex=i;genIndex<genIDcounter;genIndex++)//i is the position to remove the genID at.
 					{
 						genID_table[genIndex] = genID_table[genIndex+1]; 
 					}
+					memset(&genID_table[i], 0, sizeof(struct generationID));
 					genIDcounter--;
+
+					printf("genIDcounter %d\n",genIDcounter);
+					printf("GEN TABLE UPDATED:\n");
+					for(uint i=0;i<=genIDcounter;i++)
+					{
+						for(uint j = 0;j<GENID_LEN;j++)
+						{
+							printf("%02X ",genID_table[i].ID[j]);
+						}
+						printf("\n");
+					}
+
 					//Free decoder.
 					kodoc_delete_coder(decoder);
 				}
@@ -598,12 +613,6 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 		char ring_name[GENID_LEN];
 		sprintf(ring_name,"%s",genID_table[genIDcounter].ID);
 		struct rte_ring *new_ring = rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
-		
-		//Dump ring status to file.
-		FILE *mbuf_file;
-		mbuf_file = fopen("rings.txt","a");
-		rte_ring_list_dump(mbuf_file);
-		fclose(mbuf_file);
 
 		printf("%s\n", rte_strerror(rte_errno));
 
@@ -690,7 +699,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 									{
 										printf("%02x:", mltcst_fwd_tbl[i].s_addr.addr_bytes[j]);
 									}
-									printf(" %d",mltcst_fwd_tbl[i].port);
+									printf(" port: %d",mltcst_fwd_tbl[i].port);
 								}
 								printf("\n");
 							}
@@ -709,7 +718,6 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 					{
 						if(memcmp(mltcst_fwd_tbl[i].grp_addr,data+50,sizeof(mltcst_fwd_tbl[i].grp_addr))==0)
 						{
-							printf("exists\n");
 							in_mltcst_table = 1;
 							break;
 						}
@@ -739,6 +747,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 							{
 								printf("%02x:", mltcst_fwd_tbl[i].s_addr.addr_bytes[j]);
 							}
+							printf(" port: %d",mltcst_fwd_tbl[i].port);
 						}
 						printf("\n");
 					}
@@ -763,7 +772,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 					if(memcmp(mltcst_fwd_tbl[i].grp_addr,grp_addr.addr_bytes,sizeof(mltcst_fwd_tbl[i].grp_addr))==0) //Check if grp_addr in table.
 					{
 						status.status = 3;
-						if(network_coding== 1)
+						if(network_coding== 1) //TEMP for decoder have as status3
 						{
 							status.status = 4; //Coding capable. TEMP, change back to 4
 						}
@@ -782,9 +791,6 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 				{
 					add_mac_addr(grp_addr,srcport);
 				}
-
-				printf("status %d\n", status.status);
-
 			}
 			else //In 244.0.0.X and not IGMP
 			{
@@ -915,7 +921,7 @@ l2fwd_main_loop(void)
 				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
 				buffer = tx_buffer[portid];
 				//TEMP loop through buff to see which packets it has.
-/*				for(int k =0;k<buffer->length;k++)
+				/*for(int k =0;k<buffer->length;k++)
 				{
 					const unsigned char* data = rte_pktmbuf_mtod(buffer->pkts[k], void *); //Convert data to char.
 					for(uint i=0;i<sizeof(data)*8;i+=8)
