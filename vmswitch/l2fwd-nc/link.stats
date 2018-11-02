@@ -1,13 +1,14 @@
-port:0;mac_address:DE:AD:BE:EF:00:02;link_speed:1000;link_duplex:1;link_status:1;ipackets:17;opackets:20;ibytes:1108;obytes:1210;ierrors:0;oerrors:0;
-port:1;mac_address:DE:AD:BE:EF:00:03;link_speed:1000;link_duplex:1;link_status:1;ipackets:5;opackets:31;ibytes:330;obytes:2048;ierrors:0;oerrors:0;
-port:2;mac_address:DE:AD:BE:EF:00:04;link_speed:1000;link_duplex:1;link_status:1;ipackets:2;opackets:35;ibytes:128;obytes:2310;ierrors:0;oerrors:0;
-port:3;mac_address:DE:AD:BE:EF:00:05;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:22;ibytes:0;obytes:1350;ierrors:0;oerrors:0;
-port:4;mac_address:DE:AD:BE:EF:11:00;link_speed:1000;link_duplex:1;link_status:1;ipackets:13;opackets:23;ibytes:832;obytes:1578;ierrors:0;oerrors:0;
+port:0;mac_address:DE:AD:BE:EF:00:02;link_speed:1000;link_duplex:1;link_status:1;ipackets:897;opackets:16;ibytes:1553900;obytes:960;ierrors:0;oerrors:0;
+port:1;mac_address:DE:AD:BE:EF:00:03;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:16;ibytes:0;obytes:960;ierrors:0;oerrors:0;
+port:2;mac_address:DE:AD:BE:EF:00:04;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:16;ibytes:0;obytes:960;ierrors:0;oerrors:0;
+port:3;mac_address:DE:AD:BE:EF:00:05;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:16;ibytes:0;obytes:900;ierrors:0;oerrors:0;
+port:4;mac_address:DE:AD:BE:EF:11:00;link_speed:1000;link_duplex:1;link_status:1;ipackets:16;opackets:557;ibytes:1024;obytes:856488;ierrors:0;oerrors:0;
+ors:0;
+;ierrors:0;oerrors:0;
+:0;
+rrors:0;
 
-rs:0;oerrors:0;
 s:0;
-0;
-s:0;
-5;ierrors:750;oerrors:0;
+ors:0;
 rs:0;
 0;
