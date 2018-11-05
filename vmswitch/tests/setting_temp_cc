@@ -1,0 +1,46 @@
+Encode
+	//TEMP. Pre update MAC table to make nodes debE -> debH coding_capable.
+	for(int i = 0;i<4;i++)
+	{
+		struct ether_addr d_addr = { 
+			{0xDE,0xAD,0xBE,0xEF,0x01,i+6}
+		};
+
+		mac_fwd_table[mac_counter].vlan = 0;
+		mac_fwd_table[mac_counter].d_addr = d_addr;
+		mac_fwd_table[mac_counter].type = DYNAMIC;
+		mac_fwd_table[mac_counter].port = 4;
+		mac_fwd_table[mac_counter].coding_capable = 1; //Default coding capable to not capable (0) for the time being.
+
+		//Also create rte_ring for encoding queue, for each new MAC entry.
+		char ring_name[30];
+		sprintf(ring_name,"encoding_ring%d",mac_counter);
+		encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+
+		//Increment MAC counter.
+		mac_counter++;
+	}
+
+
+Decode 	
+	//TEMP. Pre update MAC table to make nodes debE -> debH coding_capable.
+	for(int i = 0;i<4;i++)
+	{
+		struct ether_addr d_addr = { 
+			{0xDE,0xAD,0xBE,0xEF,0x01,i+6}
+		};
+
+		mac_fwd_table[mac_counter].vlan = 0;
+		mac_fwd_table[mac_counter].d_addr = d_addr;
+		mac_fwd_table[mac_counter].type = DYNAMIC;
+		mac_fwd_table[mac_counter].port = i;
+		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
+
+		//Also create rte_ring for encoding queue, for each new MAC entry.
+		char ring_name[30];
+		sprintf(ring_name,"encoding_ring%d",mac_counter);
+		encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
+
+		//Increment MAC counter.
+		mac_counter++;
+	}
