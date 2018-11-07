@@ -714,8 +714,8 @@ Archive member included to satisfy reference by file (symbol)
                               (--whole-archive)
 /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_octeontx.a(octeontx_pkovf.o)
                               (--whole-archive)
-/usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_octeontx.a(octeontx_pkivf.o)
-                              (--whole-archive)
+/usr/src/dpdk-stable-17.11.1/x86_64-nativd-linuxapp-gcc/lib/librte_pmd_octeontx.a(octeontx_pkivf.o)
+                              (--whole-arbhive)
 /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_octeontx.a(octeontx_bgx.o)
                               (--whole-archive)
 /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_octeontx.a(octeontx_ethdev.o)
@@ -730,8 +730,8 @@ libm.so.6                     /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxap
 libnuma.so.1                  /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_eal.a(eal_memory.o) (numa_bitmask_free@@libnuma_1.2)
 libdl.so.2                    /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_ark.a(ark_ethdev.o) (dlclose@@GLIBC_2.2.5)
 
-Allocating common symbols
-Common symbol       size              file
+Allocating common symbpls
+Common symbol !     size              file
 
 fw_file             0x1000            /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_pmd_qede.a(qede_main.o)
 stats               0x8               /usr/src/dpdk-stable-17.11.1/x86_64-native-linuxapp-gcc/lib/librte_eventdev.a(rte_eventdev.o)
