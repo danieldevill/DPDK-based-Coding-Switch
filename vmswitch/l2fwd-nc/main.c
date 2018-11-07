@@ -285,7 +285,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 			//Begin decoding on rings.
 			uint* obj_left = 0;
 			//rte_mbuf to hold the dequeued data.
-			struct rte_mbuf *dequeued_data[MAX_SYMBOLS];
+			struct rte_mbuf *dequeued_data[MAX_SYMBOLS+1];
 			if(rte_ring_mc_dequeue_bulk(&encoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>=MAX_SYMBOLS-1) //Checks if dequeued correctly.
 			{
 				printf("Encoding..\n");
@@ -837,6 +837,7 @@ static void add_mac_addr(struct ether_addr addr, unsigned srcport, unsigned codi
 	mac_fwd_table[mac_counter].coding_capable = coding_capable; //Default coding capable to not capable (0) for the time being.
 
 	//Also create rte_ring for encoding queue, for each new MAC entry.
+	printf("Creating New RIng\n");
 	char ring_name[30];
 	sprintf(ring_name,"encoding_ring%d",mac_counter);
 	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
@@ -973,7 +974,7 @@ l2fwd_main_loop(void)
 					if(status.status == 2 || status.status == 4) //Go to encode(1) or recode(3).
 					{
 						//Check if packet is encoded (NC type).
-						if(ether_type == 0x2020) //Go to recode()3.
+						if(ether_type == 0x2020) //Go to recode(3).
 						{
 							printf("Recode\n");
 							net_recode(&encoder_factory);
@@ -982,7 +983,10 @@ l2fwd_main_loop(void)
 						{
 							printf("Encode on core:%d\n",lcore_id);
 							//Add packet to encoding ring.
-							rte_ring_mp_enqueue(&encoding_rings[status.table_index],(void *)m);
+							if(rte_ring_count(&encoding_rings[status.table_index])<=encoding_rings[status.table_index].capacity) //Could cause possible packet loss.
+							{
+								rte_ring_mp_enqueue(&encoding_rings[status.table_index],(void *)m);
+							}
 
 							//TEMP Debug info on packet encoded and to which queue.
 							printf("Status:%d\n",status.status);

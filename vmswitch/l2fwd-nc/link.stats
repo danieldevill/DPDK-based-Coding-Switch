@@ -1,11 +1,9 @@
-port:0;mac_address:DE:AD:BE:EF:00:02;link_speed:0;link_duplex:0;link_status:0;ipackets:50;opackets:1;ibytes:75800;obytes:1512;ierrors:0;oerrors:0;
-port:1;mac_address:DE:AD:BE:EF:00:03;link_speed:1000;link_duplex:1;link_status:1;ipackets:8;opackets:1;ibytes:12128;obytes:1512;ierrors:0;oerrors:0;
+port:0;mac_address:DE:AD:BE:EF:00:02;link_speed:1000;link_duplex:1;link_status:1;ipackets:255;opackets:1;ibytes:386580;obytes:1512;ierrors:0;oerrors:0;
+port:1;mac_address:DE:AD:BE:EF:00:03;link_speed:1000;link_duplex:1;link_status:1;ipackets:255;opackets:1;ibytes:386580;obytes:1512;ierrors:0;oerrors:0;
 port:2;mac_address:DE:AD:BE:EF:00:04;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:2;ibytes:0;obytes:3024;ierrors:0;oerrors:0;
 port:3;mac_address:DE:AD:BE:EF:00:05;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:2;ibytes:0;obytes:3024;ierrors:0;oerrors:0;
 port:4;mac_address:DE:AD:BE:EF:11:00;link_speed:1000;link_duplex:1;link_status:1;ipackets:0;opackets:2;ibytes:0;obytes:3024;ierrors:0;oerrors:0;
-0;
-0;
-:0;
+;
 ;
 ;
 s:0;
