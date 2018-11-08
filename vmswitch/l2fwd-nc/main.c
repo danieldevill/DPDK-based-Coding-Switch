@@ -95,7 +95,7 @@
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
 #define MAC_ENTRIES 200
-#define ENCODING_RINGS 200
+#define ENCODING_RINGS 20
 #define GENID_LEN 8
 #define ETHER_TYPE_LEN 2
 
@@ -281,14 +281,14 @@ net_encode(kodoc_factory_t *encoder_factory)
 	{
 		if(rte_ring_count(&encoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin encoding. Also need to add if the time limit is reached as an OR.
 		{
-			printf("In Ring %s,size:%d ,count:%d\n",encoding_rings[i].name,encoding_rings[i].size,rte_ring_count(&encoding_rings[i]));
 			//Begin decoding on rings.
 			uint* obj_left = 0;
 			//rte_mbuf to hold the dequeued data.
-			struct rte_mbuf *dequeued_data[MAX_SYMBOLS+1];
+			struct rte_mbuf *dequeued_data[MAX_SYMBOLS-1];
+			rte_pktmbuf_alloc_bulk(codingmbuf_pool,dequeued_data,MAX_SYMBOLS);
 			if(rte_ring_mc_dequeue_bulk(&encoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>=MAX_SYMBOLS-1) //Checks if dequeued correctly.
 			{
-				printf("Encoding..\n");
+				printf("Encoding.. in ring: %s at index: %d\n",encoding_rings[i].name,i);
 
 				kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
 
@@ -305,6 +305,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 				for(uint pkt=0;pkt<MAX_SYMBOLS-1;pkt++)
 				{
 					//Get recieved packet
+					printf("pkt:%d\n",pkt );
 					struct rte_mbuf *m = dequeued_data[pkt];
 					const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
@@ -373,6 +374,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 				  	l2fwd_learning_forward(encoded_mbuf, &status);
 				  	rte_pktmbuf_free(rte_mbuf_payload);
 				  	rte_pktmbuf_free(encoded_mbuf);
+				  	//rte_pktmbuf_free();
 				}
 
 				rte_pktmbuf_free(rte_mbuf_data_in);
@@ -781,8 +783,8 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 						if(mac_fwd_table[i].coding_capable == 1)
 						{
 							status.status = 4;
+							status.table_index = i;
 						}
-						status.table_index = i;
 					}
 				}
 
@@ -837,7 +839,6 @@ static void add_mac_addr(struct ether_addr addr, unsigned srcport, unsigned codi
 	mac_fwd_table[mac_counter].coding_capable = coding_capable; //Default coding capable to not capable (0) for the time being.
 
 	//Also create rte_ring for encoding queue, for each new MAC entry.
-	printf("Creating New RIng\n");
 	char ring_name[30];
 	sprintf(ring_name,"encoding_ring%d",mac_counter);
 	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
@@ -974,31 +975,27 @@ l2fwd_main_loop(void)
 					if(status.status == 2 || status.status == 4) //Go to encode(1) or recode(3).
 					{
 						//Check if packet is encoded (NC type).
-						if(ether_type == 0x2020) //Go to recode(3).
+						if(ether_type == 0x2020) //Go to recode()3.
 						{
 							printf("Recode\n");
 							net_recode(&encoder_factory);
 						}
 						else //Go to encode(1).
 						{
-							printf("Encode on core:%d\n",lcore_id);
+							printf("\nEncode");
 							//Add packet to encoding ring.
-							if(rte_ring_count(&encoding_rings[status.table_index])<=encoding_rings[status.table_index].capacity) //Could cause possible packet loss.
-							{
-								rte_ring_mp_enqueue(&encoding_rings[status.table_index],(void *)m);
-							}
-
-							//TEMP Debug info on packet encoded and to which queue.
-							printf("Status:%d\n",status.status);
-							const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+							rte_ring_mp_enqueue(&encoding_rings[status.table_index],(void *)m);
+							printf("\nPacket:\n");
 							for(uint i=0;i<sizeof(data)*8;i+=8)
 							{
 								printf("%x %x %x %x %x %x %x %x\n", data[i],data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],data[i+7]);
 							}
-							//Ring info
-							printf("Added to Ring:%s ,size:%d ,capactity:%d ,count:%d\n",encoding_rings[status.table_index].name,encoding_rings[status.table_index].size,encoding_rings[status.table_index].capacity, rte_ring_count(&encoding_rings[status.table_index]));
-							printf("\n");
-
+							printf("added to ring: %s at index: %d [cap:%d,size:%d,count:%d]\n",
+								encoding_rings[status.table_index].name,
+								status.table_index,
+								encoding_rings[status.table_index].size,
+								encoding_rings[status.table_index].capacity,
+								rte_ring_count(&encoding_rings[status.table_index]) );
 
 							//Run encoder function.
 							net_encode(&encoder_factory);
@@ -1416,7 +1413,7 @@ main(int argc, char **argv)
 					portid);
 
 		rte_eth_tx_buffer_init(tx_buffer[portid], MAX_PKT_BURST);
-		/*
+/*
 		void *userdata = (void *)1;
 		ret = rte_eth_tx_buffer_set_err_callback(tx_buffer[portid],
 				rte_eth_tx_buffer_count_callback,userdata);
@@ -1459,8 +1456,8 @@ main(int argc, char **argv)
 		mac_fwd_table[mac_counter].vlan = 0;
 		mac_fwd_table[mac_counter].d_addr = d_addr;
 		mac_fwd_table[mac_counter].type = DYNAMIC;
-		mac_fwd_table[mac_counter].port = 4;
-		mac_fwd_table[mac_counter].coding_capable = 1; //Default coding capable to not capable (0) for the time being.
+		mac_fwd_table[mac_counter].port = i;
+		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
 
 		//Also create rte_ring for encoding queue, for each new MAC entry.
 		char ring_name[30];

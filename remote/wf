@@ -7,11 +7,11 @@ sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S /home/
 
 echo "Interfaces up!" &&
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS.qcow2 \
+sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_EN.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
--smp 6 -numa node,nodeid=0  \
+-smp 2 -numa node,nodeid=0  \
 -device e1000,vlan=0 -net user,name=net1,vlan=0,hostfwd=tcp::10022-:22,hostfwd=tcp::10080-:80 \
 -device e1000,vlan=1,mac=de:ad:be:ef:00:02 \
 -net tap,name=net2,vlan=1,ifname=sw_tap1,script=no,downscript=no \
@@ -30,7 +30,7 @@ sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-s
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
--smp 6 -numa node,nodeid=0  \
+-smp 2 -numa node,nodeid=0  \
 -device e1000,vlan=6 -net user,name=net7,vlan=6,hostfwd=tcp::10023-:22,hostfwd=tcp::20080-:80 \
 -device e1000,vlan=7,mac=de:ad:be:ef:01:02 \
 -net tap,name=net8,vlan=7,ifname=sw_tap5,script=no,downscript=no \
