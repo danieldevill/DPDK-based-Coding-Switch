@@ -95,7 +95,7 @@
 //<VLAN,MAC,Type,port,coding_capable> table. Simular to CISCO switches? Maybe this will help in the future somewhere..
 //Ive added a new idea where the mac table has a coding capable field.
 #define MAC_ENTRIES 200
-#define ENCODING_RINGS 20
+#define ENCODING_RINGS 32
 #define GENID_LEN 8
 #define ETHER_TYPE_LEN 2
 
@@ -131,7 +131,7 @@ struct multicast_table_entry {
 struct multicast_table_entry *mltcst_fwd_tbl;
 
 //Pointer to all dst_add ring structs. 
-struct rte_ring *encoding_rings;
+struct rte_ring encoding_rings[ENCODING_RINGS];
 
 //Other defines by DD
 #define HW_TYPE_ETHERNET 0x0001
@@ -230,11 +230,13 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 	struct rte_eth_dev_tx_buffer *buffer;
 	if(status->status >= 3) //Multicast packet to dst ports.
 	{
+		printf("Status:%d",status->status);
 		const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Packet data to get grp_addr.
 		for (uint port = 0; port < rte_eth_dev_count(); port++)
 		{
 			for (uint i = 0; i < mltcst_counter; i++)
 			{
+				printf("here!\n");
 				if((mltcst_fwd_tbl[i].grp_addr[2] == *(data+4)) && (mltcst_fwd_tbl[i].grp_addr[3] == *(data+5)) && port == mltcst_fwd_tbl[i].port) //Check if grp_addr in table.
 				{
 					printf("fwd mltcst out port: %d\n",port);
@@ -277,18 +279,27 @@ static void
 net_encode(kodoc_factory_t *encoder_factory)
 {
 	//Loop through each dst_addr in the MAC table and check if the ring is full. If the ring is full then begin encoding on that queue.
+	struct rte_ring* encode_ring_ptr;
 	for(int i=0;i<=ENCODING_RINGS;i++)
 	{
-		if(rte_ring_count(&encoding_rings[i])>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin encoding. Also need to add if the time limit is reached as an OR.
+		encode_ring_ptr = &encoding_rings[i];
+
+		if(rte_ring_count(encode_ring_ptr)==MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin encoding. Also need to add if the time limit is reached as an OR.
 		{
 			//Begin decoding on rings.
 			uint* obj_left = 0;
 			//rte_mbuf to hold the dequeued data.
 			struct rte_mbuf *dequeued_data[MAX_SYMBOLS-1];
 			rte_pktmbuf_alloc_bulk(codingmbuf_pool,dequeued_data,MAX_SYMBOLS);
-			if(rte_ring_mc_dequeue_bulk(&encoding_rings[i],(void **)dequeued_data,MAX_SYMBOLS-1,obj_left)>=MAX_SYMBOLS-1) //Checks if dequeued correctly.
+			rte_ring_dequeue_bulk(encode_ring_ptr,(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
+			if(rte_ring_count(encode_ring_ptr)==0) //Checks if dequeued correctly.
 			{
-				printf("Encoding.. in ring: %s at index: %d\n",encoding_rings[i].name,i);
+				printf("Encoding ring err: %s", rte_strerror(rte_errno));
+
+				printf("Encoding.. in ring: %s at index: %d\n",encode_ring_ptr->name,i);
+
+				//printf("Rings\n");
+				//rte_ring_list_dump(stdout);
 
 				kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
 
@@ -349,7 +360,7 @@ net_encode(kodoc_factory_t *encoder_factory)
 					//Instead generate random array of characters. 
 					//Create generationID 
 					char genID[GENID_LEN];
-					if(pkt == 0) //Create genID only
+					if(pkt == 0) //Create genID only during first pkt. use this genID for all other pkts in generation.
 					{
 						int genChar;
 						for(genChar=0;genChar<GENID_LEN;genChar++)
@@ -551,8 +562,6 @@ update_settings(void)
 			mac_fwd_table = calloc(setting,setting * sizeof(struct mac_table_entry));
 			gentable_size = setting;
 			genID_table = calloc(gentable_size,gentable_size * sizeof(struct generationID));
-			//Allocate memory for encoding rings equal to MAC table size.
-			encoding_rings = calloc(setting,setting * sizeof(struct rte_ring));
 			//Table for IGMP multicast cache table. 
 			mltcst_fwd_tbl = calloc(setting,setting * sizeof(struct multicast_table_entry));;
 
@@ -843,6 +852,7 @@ static void add_mac_addr(struct ether_addr addr, unsigned srcport, unsigned codi
 	sprintf(ring_name,"encoding_ring%d",mac_counter);
 	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
 	printf("Encoding ring err: %s", rte_strerror(rte_errno));
+	printf("\nMAC_COUNTER:%d\n", mac_counter);
 
 	//Increment MAC counter.
 	mac_counter++;
@@ -984,7 +994,8 @@ l2fwd_main_loop(void)
 						{
 							printf("\nEncode");
 							//Add packet to encoding ring.
-							rte_ring_mp_enqueue(&encoding_rings[status.table_index],(void *)m);
+							rte_ring_enqueue(&encoding_rings[status.table_index],(void *)m);
+							printf("Encoding ring err: %s", rte_strerror(rte_errno));
 							printf("\nPacket:\n");
 							for(uint i=0;i<sizeof(data)*8;i+=8)
 							{
@@ -1456,8 +1467,8 @@ main(int argc, char **argv)
 		mac_fwd_table[mac_counter].vlan = 0;
 		mac_fwd_table[mac_counter].d_addr = d_addr;
 		mac_fwd_table[mac_counter].type = DYNAMIC;
-		mac_fwd_table[mac_counter].port = i;
-		mac_fwd_table[mac_counter].coding_capable = 0; //Default coding capable to not capable (0) for the time being.
+		mac_fwd_table[mac_counter].port = 4;
+		mac_fwd_table[mac_counter].coding_capable = 1; //Default coding capable to not capable (0) for the time being.
 
 		//Also create rte_ring for encoding queue, for each new MAC entry.
 		char ring_name[30];
@@ -1480,7 +1491,7 @@ main(int argc, char **argv)
 
 	//Free rings and MAC_TABLE
 	free(mac_fwd_table);
-	free(encoding_rings);
+	//free(encoding_rings);
 	free(genID_table);
 
 	//Close ports when finished
