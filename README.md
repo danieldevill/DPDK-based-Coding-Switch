@@ -17,4 +17,8 @@ A network coding capable switch implemented using Intel's DPDK framework.
 ## Notes:
 	* The switch vm might have to have the kernel recompiled based on the cpu type.
 
+## Running the switch:
+	* 5 ports on core 1: 
+	* run -l 1 -n 1 -m 200 --file-prefix l2 -- -p fffff -q 5
+
 
