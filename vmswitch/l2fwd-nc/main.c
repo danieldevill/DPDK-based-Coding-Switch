@@ -325,16 +325,10 @@ net_encode(kodoc_factory_t *encoder_factory)
 						const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
 						//Fill data_in with data.
-						for(uint j=0;j<MAX_SYMBOL_SIZE;j++)
+						printf("Data_len %d\n",rte_pktmbuf_data_len(m) );
+						for(uint j=(2*ETHER_ADDR_LEN);j<rte_pktmbuf_data_len(m);j++)
 						{
-							if(j<rte_pktmbuf_data_len(m))
-							{
-								data_in[((MAX_SYMBOL_SIZE)*pkt)+j] = data[j+(2*ETHER_ADDR_LEN)]; //Data starts at 12th byte position, after src and dst. Include eth_type.
-							}
-							else
-							{
-								data_in[((MAX_SYMBOL_SIZE)*pkt)+j] = 0; //Pad with zeros after payload
-							}
+							data_in[((MAX_SYMBOL_SIZE)*pkt)+j] = data[j]; //Data starts at 12th byte position, after src and dst. Include eth_type.
 						}
 					}
 
@@ -450,16 +444,9 @@ net_decode(kodoc_factory_t *decoder_factory)
 						int rank  = kodoc_rank(decoder);
 
 						//Fill payload to decode, with data.
-						for(uint j=0;j<MAX_SYMBOL_SIZE-1;j++)
+						for(uint j=0;j<rte_pktmbuf_data_len(m);j++)
 						{
-							if(j<rte_pktmbuf_data_len(m))
-							{
-								payload[j] = (uint8_t)data[j+ETHER_HDR_LEN+GENID_LEN]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
-							}
-							else
-							{
-								payload[j] = 0; //Pad with zeros after payload
-							}
+							payload[j] = (uint8_t)data[j+ETHER_HDR_LEN+GENID_LEN]; //Data starts at 14th byte position, after src and dst. Exclude eth_type (Which will be NC type).
 						}
 
 						//Pass payload to decoder
@@ -468,6 +455,13 @@ net_decode(kodoc_factory_t *decoder_factory)
 						//Decoder rank indicates how many symbols have been decoded.
 						printf("Payload processed by decoder, current rank = %d\n", rank);
 						rte_pktmbuf_free(rte_mbuf_payload);
+
+						//If the rank is not equal to pkt then return until more packets are added. This means redundat packets are in ring.
+						if((pkt-1)!=(uint)rank)
+						{
+							return;
+						}
+
 					}
 
 					uint8_t* pkt_ptr = data_out;
@@ -609,7 +603,7 @@ update_settings(void)
 	config_destroy(&cfg);
 }
 
-static void 
+static struct rte_ring*
 genID_in_genTable(char *generationID) //Need to add a flushing policy
 {
 	//Loop through genID_table, and check if generationID exists in table.
@@ -619,6 +613,7 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 		if(memcmp(generationID,genID_table[i].ID,GENID_LEN) == 0)
 		{
 			in_table = 1;
+			return rte_ring_lookup(genID_table[i].ID);
 		}
 	}
 	if(in_table == 0) //GEN_ID not in table, so make new ring for decoded packets.
@@ -632,9 +627,9 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 
 		printf("%s\n", rte_strerror(rte_errno));
 
-		if(new_ring!=NULL)
+		if(new_ring!=NULL) //If ring created sucessfully.
 		{
-			printf("genIDcounter %d\n",genIDcounter);
+/*			printf("genIDcounter %d\n",genIDcounter);
 			printf("GEN TABLE UPDATED:\n");
 			for(uint i=0;i<=genIDcounter;i++)
 			{
@@ -643,11 +638,15 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 					printf("%02X ",genID_table[i].ID[j]);
 				}
 				printf("\n");
-			}
+			}*/
 
 			genIDcounter++;
+
+			//rte_ring_list_dump(stdout);
 		}
+		return new_ring;
 	}
+	return NULL;
 }
 
 //Check if dst_addr exists, otherwise adds it to the MAC table. 1 if it exits, 2 if it exists and is coding capable, and 0 if it doesnt exist.
@@ -803,7 +802,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 
 				if(unlikely(mac_add==0))
 				{
-					add_mac_addr(grp_addr,srcport,network_coding);						
+					add_mac_addr(grp_addr,srcport,1);						
 				}
 			}
 			else //In 244.0.0.X and not IGMP
@@ -967,6 +966,10 @@ l2fwd_main_loop(void)
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
 						 pkts_burst, MAX_PKT_BURST);
+			if(nb_rx>0)
+			{
+				printf("Pkts rx:%d\n",nb_rx );
+			}
 			for (j = 0; j < nb_rx; j++) {
 				//Send recieved packets to tx, for each packet recieved
 				m = pkts_burst[j];
@@ -974,6 +977,13 @@ l2fwd_main_loop(void)
 
 				//Get recieved packet
 				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+
+				//TEMP read rx
+				for(uint i=0;i<sizeof(data)*8;i+=8)
+				{
+					printf("Hx_in %x %x %x %x %x %x %x %x\n", data[i],data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],data[i+7]);
+				}
+				printf("\n");
 
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));
@@ -1005,17 +1015,12 @@ l2fwd_main_loop(void)
 							printf("%s\n",ring_name);
 							struct rte_ring* encode_ring_ptr = rte_ring_lookup(ring_name);
 							rte_ring_enqueue(encode_ring_ptr,(void *)m);
-							printf("\nPacket:\n");
-							for(uint i=0;i<sizeof(data)*8;i+=8)
-							{
-								printf("%x %x %x %x %x %x %x %x\n", data[i],data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],data[i+7]);
-							}
 							printf("added to ring: %s at index: %d [cap:%d,size:%d,count:%d]\n",
 								encode_ring_ptr->name,
 								status.table_index,
 								encode_ring_ptr->size,
 								encode_ring_ptr->capacity,
-								rte_ring_count(encode_ring_ptr) );
+								rte_ring_count(encode_ring_ptr));
 
 							//Run encoder function.
 							net_encode(&encoder_factory);
@@ -1032,11 +1037,20 @@ l2fwd_main_loop(void)
 							rte_memcpy(genID,&data[14],GENID_LEN);
 
 							//Check if genID is in genTable
-							genID_in_genTable(genID);
-							//Add packet to decoding ring
-							rte_ring_mp_enqueue(rte_ring_lookup(genID),(void *)m);
-							//Call decoder
-							net_decode(&decoder_factory);
+							struct rte_ring* decode_ring_ptr = genID_in_genTable(genID);
+							printf("GENID %s\n",genID);
+							printf("%s\n", rte_strerror(rte_errno));
+							if(decode_ring_ptr!=NULL)
+							{
+								//Add packet to decoding ring
+								rte_ring_enqueue(decode_ring_ptr,(void *)m);
+								//Call decoder
+								net_decode(&decoder_factory);
+							}
+							else
+							{
+								printf("Decoding Ring does not exist.\n");
+							}
 						}
 						else //Go to nocode(4).
 						{
