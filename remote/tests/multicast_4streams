@@ -14,39 +14,39 @@ echo "Test running.."
 #Start servers (Multicast receving end) on hosts E-H
 #Host: debE
 #sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 ''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.67 -i 1 -D &> debE_mcst4_67''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.68 -i 1 -D >> debE_mcst4_68''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.69 -i 1 -D >> debE_mcst4_69''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.70 -i 1 -D >> debE_mcst4_70''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.67 -i 1 -D > debE_mcst4_67''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.68 -i 1 -D > debE_mcst4_68''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.69 -i 1 -D > debE_mcst4_69''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'iperf -s -u -B 224.0.67.70 -i 1 -D > debE_mcst4_70''
 echo "debE servers up."
 #Host: debF
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.67 -i 1 -D >> debF_mcst4_67''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.68 -i 1 -D >> debF_mcst4_68''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.69 -i 1 -D >> debF_mcst4_69''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.70 -i 1 -D >> debF_mcst4_70'' 
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.67 -i 1 -D > debF_mcst4_67''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.68 -i 1 -D > debF_mcst4_68''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.69 -i 1 -D > debF_mcst4_69''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10006 'iperf -s -u -B 224.0.67.70 -i 1 -D > debF_mcst4_70'' 
 echo "debF servers up."
 #Host: debG
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.67 -i 1 -D >> debG_mcst4_67''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.68 -i 1 -D >> debG_mcst4_68''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.69 -i 1 -D >> debG_mcst4_69''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.70 -i 1 -D >> debG_mcst4_70''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.67 -i 1 -D > debG_mcst4_67''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.68 -i 1 -D > debG_mcst4_68''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.69 -i 1 -D > debG_mcst4_69''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10007 'iperf -s -u -B 224.0.67.70 -i 1 -D > debG_mcst4_70''
 echo "debG servers up."
 #Host: debH
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.67 -i 1 -D >> debH_mcst4_67''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.68 -i 1 -D >> debH_mcst4_68''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.69 -i 1 -D >> debH_mcst4_69''
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.70 -i 1 -D >> debH_mcst4_70''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.67 -i 1 -D > debH_mcst4_67''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.68 -i 1 -D > debH_mcst4_68''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.69 -i 1 -D > debH_mcst4_69''
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10008 'iperf -s -u -B 224.0.67.70 -i 1 -D > debH_mcst4_70''
 echo "debH servers up."
 
 #Start Clients (Multicast transmitting end) on hosts A-D
 #Host: debA
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10001 'iperf -c 224.0.67.67 -u --ttl 5 -t 5 -F nettest.dat'' &
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10001 'iperf -c 224.0.67.67 -u --ttl 5 -t 5 -l 1000 -F nettest.dat'' &
 #Host: debB
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10002 'iperf -c 224.0.67.68 -u --ttl 5 -t 5 -F nettest.dat'' &
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10002 'iperf -c 224.0.67.68 -u --ttl 5 -t 5 -l 1000 -F nettest.dat'' &
 #Host: debC
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10003 'iperf -c 224.0.67.69 -u --ttl 5 -t 5 -F nettest.dat'' &
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10003 'iperf -c 224.0.67.69 -u --ttl 5 -t 5 -l 1000 -F nettest.dat'' &
 #Host: debD
-sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10004 'iperf -c 224.0.67.70 -u --ttl 5 -t 5 -F nettest.dat'' ;
+sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10004 'iperf -c 224.0.67.70 -u --ttl 5 -t 5 -l 1000 -F nettest.dat'' ;
 
 #Kill all iperf servers.
 sudo sshpass -p 'mininet' ssh -t ubuntu@10.10.11.118 'sshpass -p 'debian' ssh debian@10.10.11.118 -p 10005 'pkill iperf''

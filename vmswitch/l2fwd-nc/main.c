@@ -240,7 +240,7 @@ l2fwd_learning_forward(struct rte_mbuf *m, struct dst_addr_status *status)
 					buffer = tx_buffer[port];
 					rte_eth_tx_buffer(port, 0, buffer, m);
 					rte_eth_tx_buffer_flush(port, 0, buffer);
-					printf("sent outta port: %d\n",port);
+					printf("Pkt sent out port: %d\n",port);
 					break; //Prevents the multiple packets out the same port for each indv source entry.
 				}
 			}
@@ -279,11 +279,9 @@ net_encode(kodoc_factory_t *encoder_factory)
 	//Loop through each dst_addr in the MAC table and check if the ring is full. If the ring is full then begin encoding on that queue.
 	for(uint i=0;i<=mac_counter;i++)
 	{
-		//struct rte_ring* encode_ring_ptr = &encoding_rings[i];
 		char ring_name[30];
 		sprintf(ring_name,"encoding_ring%d",i);
 
-		printf("%s\n",ring_name);
 		struct rte_ring* encode_ring_ptr = rte_ring_lookup(ring_name);
 
 		if(encode_ring_ptr!=NULL)
@@ -298,13 +296,6 @@ net_encode(kodoc_factory_t *encoder_factory)
 				rte_ring_dequeue_bulk(encode_ring_ptr,(void **)dequeued_data,MAX_SYMBOLS-1,obj_left);
 				if(rte_ring_count(encode_ring_ptr)==0) //Checks if dequeued correctly.
 				{
-					printf("\n In EncodeAlgorithim Encoding ring err: %s", rte_strerror(rte_errno));
-
-					printf("Encoding.. in ring: %s at index: %d\n",encode_ring_ptr->name,i);
-
-					//printf("Rings\n");
-					//rte_ring_list_dump(stdout);
-
 					kodoc_coder_t encoder = kodoc_factory_build_coder(*encoder_factory);
 
 					kodoc_set_systematic_off(encoder);
@@ -320,15 +311,13 @@ net_encode(kodoc_factory_t *encoder_factory)
 					for(uint pkt=0;pkt<MAX_SYMBOLS-1;pkt++)
 					{
 						//Get recieved packet
-						printf("pkt:%d\n",pkt );
 						struct rte_mbuf *m = dequeued_data[pkt];
 						const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
 						//Fill data_in with data.
-						printf("Data_len %d\n",rte_pktmbuf_data_len(m) );
-						for(uint j=(2*ETHER_ADDR_LEN);j<rte_pktmbuf_data_len(m);j++)
+						for(uint j=0;j<rte_pktmbuf_data_len(m);j++)
 						{
-							data_in[((MAX_SYMBOL_SIZE)*pkt)+j] = data[j]; //Data starts at 12th byte position, after src and dst. Include eth_type.
+							data_in[((MAX_SYMBOL_SIZE)*pkt)+j] = data[j+(2*ETHER_ADDR_LEN)]; //Data starts at 12th byte position, after src and dst. Include eth_type.
 						}
 					}
 
@@ -369,15 +358,15 @@ net_encode(kodoc_factory_t *encoder_factory)
 
 						//Create mbuf for encoded reply
 						struct rte_mbuf* encoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-						char* encoded_data = rte_pktmbuf_append(encoded_mbuf,rte_pktmbuf_data_len(m)+12);
+						char* encoded_data = rte_pktmbuf_append(encoded_mbuf,rte_pktmbuf_data_len(m)+GENID_LEN+10);
 						struct ether_hdr eth_hdr = {	
 							d_addr, //Same as incoming source addr.
 							s_addr, //Port mac address
 							0x2020 //My custom NC Ether type?
-						};	
+						};
 						encoded_data = rte_memcpy(encoded_data,&eth_hdr,ETHER_HDR_LEN); //Add eth_hdr
 						encoded_data = rte_memcpy(encoded_data+ETHER_HDR_LEN,genID,sizeof(genID)); //Add generationID
-						encoded_data = rte_memcpy(encoded_data+sizeof(genID),payload,MAX_SYMBOL_SIZE); //Add payload
+						encoded_data = rte_memcpy(encoded_data+sizeof(genID),payload,kodoc_payload_size(encoder)); //Add payload
 
 						struct dst_addr_status status = dst_mac_status(m, 0);
 					  	l2fwd_learning_forward(encoded_mbuf, &status);
@@ -435,7 +424,21 @@ net_decode(kodoc_factory_t *decoder_factory)
 					while (!kodoc_is_complete(decoder))
 					{
 						//Get recieved packet
-						struct rte_mbuf *m = dequeued_data[pkt++];
+						if(pkt>=(MAX_SYMBOLS-1))
+						{
+							rte_ring_free(decoding_ring);
+							//Remove generationID from table.
+							for(uint genIndex=i;genIndex<genIDcounter;genIndex++)//i is the position to remove the genID at.
+							{
+								genID_table[genIndex] = genID_table[genIndex+1]; 
+							}
+							memset(&genID_table[i], 0, sizeof(struct generationID));
+							genIDcounter--;
+							rte_pktmbuf_free(rte_mbuf_data_out);
+							kodoc_delete_coder(decoder);
+							return;
+						}
+						struct rte_mbuf *m = dequeued_data[pkt];
 						const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
 						struct rte_mbuf* rte_mbuf_payload = rte_pktmbuf_alloc(codingmbuf_pool);
@@ -456,12 +459,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 						printf("Payload processed by decoder, current rank = %d\n", rank);
 						rte_pktmbuf_free(rte_mbuf_payload);
 
-						//If the rank is not equal to pkt then return until more packets are added. This means redundat packets are in ring.
-						if((pkt-1)!=(uint)rank)
-						{
-							return;
-						}
-
+						pkt++;
 					}
 
 					uint8_t* pkt_ptr = data_out;
@@ -480,7 +478,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 
 						//Create mbuf for decoded reply
 					  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
-						char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m));
+						char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m)-GENID_LEN-10);
 						struct ether_hdr eth_hdr = {
 							d_addr, //Same as incoming source addr.
 							s_addr, //Port mac address
@@ -527,6 +525,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 		}
 	}
 }
+
 
 static void
 net_recode(kodoc_factory_t *encoder_factory)
@@ -625,11 +624,9 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 		sprintf(ring_name,"%s",genID_table[genIDcounter].ID);
 		struct rte_ring *new_ring = rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
 
-		printf("%s\n", rte_strerror(rte_errno));
-
 		if(new_ring!=NULL) //If ring created sucessfully.
 		{
-/*			printf("genIDcounter %d\n",genIDcounter);
+			printf("genIDcounter %d\n",genIDcounter);
 			printf("GEN TABLE UPDATED:\n");
 			for(uint i=0;i<=genIDcounter;i++)
 			{
@@ -638,11 +635,9 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 					printf("%02X ",genID_table[i].ID[j]);
 				}
 				printf("\n");
-			}*/
+			}
 
 			genIDcounter++;
-
-			//rte_ring_list_dump(stdout);
 		}
 		return new_ring;
 	}
@@ -854,8 +849,6 @@ static void add_mac_addr(struct ether_addr addr, unsigned srcport, unsigned codi
 	char ring_name[30];
 	sprintf(ring_name,"encoding_ring%d",mac_counter);
 	encoding_rings[mac_counter] = *rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
-	printf("Encoding ring err: %s", rte_strerror(rte_errno));
-	printf("\nMAC_COUNTER:%d\n", mac_counter);
 
 	//Increment MAC counter.
 	mac_counter++;
@@ -926,16 +919,6 @@ l2fwd_main_loop(void)
 			for (i = 0; i < qconf->n_rx_port; i++) {
 				portid = l2fwd_dst_ports[qconf->rx_port_list[i]];
 				buffer = tx_buffer[portid];
-				//TEMP loop through buff to see which packets it has.
-				for(int k =0;k<buffer->length;k++)
-				{
-					const unsigned char* data = rte_pktmbuf_mtod(buffer->pkts[k], void *); //Convert data to char.
-					for(uint i=0;i<sizeof(data)*8;i+=8)
-					{
-						printf("Hx_out %x %x %x %x %x %x %x %x\n", data[i],data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],data[i+7]);
-					}
-					printf("\n");
-				}
 				rte_eth_tx_buffer_flush(portid, 0, buffer);
 			}
 
@@ -966,10 +949,6 @@ l2fwd_main_loop(void)
 			portid = qconf->rx_port_list[i];
 			nb_rx = rte_eth_rx_burst(portid, 0,
 						 pkts_burst, MAX_PKT_BURST);
-			if(nb_rx>0)
-			{
-				printf("Pkts rx:%d\n",nb_rx );
-			}
 			for (j = 0; j < nb_rx; j++) {
 				//Send recieved packets to tx, for each packet recieved
 				m = pkts_burst[j];
@@ -977,13 +956,6 @@ l2fwd_main_loop(void)
 
 				//Get recieved packet
 				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
-
-				//TEMP read rx
-				for(uint i=0;i<sizeof(data)*8;i+=8)
-				{
-					printf("Hx_in %x %x %x %x %x %x %x %x\n", data[i],data[i+1],data[i+2],data[i+3],data[i+4],data[i+5],data[i+6],data[i+7]);
-				}
-				printf("\n");
 
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));
@@ -1008,19 +980,10 @@ l2fwd_main_loop(void)
 						{
 							printf("\nEncode");
 							//Add packet to encoding ring.
-							//struct rte_ring* encode_ring_ptr = &encoding_rings[status.table_index];
-
 							char ring_name[30];
 							sprintf(ring_name,"encoding_ring%d",status.table_index);
-							printf("%s\n",ring_name);
 							struct rte_ring* encode_ring_ptr = rte_ring_lookup(ring_name);
 							rte_ring_enqueue(encode_ring_ptr,(void *)m);
-							printf("added to ring: %s at index: %d [cap:%d,size:%d,count:%d]\n",
-								encode_ring_ptr->name,
-								status.table_index,
-								encode_ring_ptr->size,
-								encode_ring_ptr->capacity,
-								rte_ring_count(encode_ring_ptr));
 
 							//Run encoder function.
 							net_encode(&encoder_factory);
@@ -1038,8 +1001,6 @@ l2fwd_main_loop(void)
 
 							//Check if genID is in genTable
 							struct rte_ring* decode_ring_ptr = genID_in_genTable(genID);
-							printf("GENID %s\n",genID);
-							printf("%s\n", rte_strerror(rte_errno));
 							if(decode_ring_ptr!=NULL)
 							{
 								//Add packet to decoding ring
