@@ -390,12 +390,16 @@ net_encode(kodoc_factory_t *encoder_factory)
 static void
 net_decode(kodoc_factory_t *decoder_factory)
 {
+	//TEMP DUMP ALL RINGS
+	rte_ring_list_dump(stdout);
 	//Loop through each decoding ring and check if the ring has atleast one object. 
 	for(uint i=0;i<genIDcounter;i++)
 	{
-		struct rte_ring* decoding_ring = rte_ring_lookup(genID_table[i].ID);
+		struct rte_ring* decoding_ring = rte_ring_lookup((genID_table+i)->ID);
+		printf("RINGALING: %s\n", (genID_table+i)->ID);
 		if(decoding_ring!=NULL)
 		{
+			printf("In Ring %s Count:%d\n",decoding_ring->name,rte_ring_count(decoding_ring));
 			if(rte_ring_count(decoding_ring)>=MAX_SYMBOLS-1) //Check if ring is fulled, if so, begin decoding. Also need to add if the time limit is reached as an OR.
 			{
 				//Begin decoding on rings.
@@ -436,6 +440,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 							genIDcounter--;
 							rte_pktmbuf_free(rte_mbuf_data_out);
 							kodoc_delete_coder(decoder);
+							printf("GENID removed\n");
 							return;
 						}
 						struct rte_mbuf *m = dequeued_data[pkt];
@@ -494,7 +499,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 
 					  	//Advance pointer to next decoded data of packet in data_out.
 					  	pkt_ptr += MAX_SYMBOL_SIZE;
-					  }
+					}
 
 					rte_pktmbuf_free(rte_mbuf_data_out);
 
@@ -506,13 +511,13 @@ net_decode(kodoc_factory_t *decoder_factory)
 					memset(&genID_table[i], 0, sizeof(struct generationID));
 					genIDcounter--;
 
-					printf("genIDcounter %d\n",genIDcounter);
-					printf("GEN TABLE UPDATED:\n");
-					for(uint i=0;i<=genIDcounter;i++)
+					printf("GENID Deleted: GEN TABLE UPDATED:\n");
+					for(uint genIndex=0;genIndex<=genIDcounter;genIndex++)
 					{
+						printf("%s:", genID_table[genIndex].ID);
 						for(uint j = 0;j<GENID_LEN;j++)
 						{
-							printf("%02X ",genID_table[i].ID[j]);
+							printf("%02X ",genID_table[genIndex].ID[j]);
 						}
 						printf("\n");
 					}
@@ -557,8 +562,7 @@ update_settings(void)
 		if(config_lookup_int(&cfg,"general_settings.MAC_ENTRIES",&setting))
 		{
 			mac_fwd_table = calloc(setting,setting * sizeof(struct mac_table_entry));
-			gentable_size = setting;
-			genID_table = calloc(gentable_size,gentable_size * sizeof(struct generationID));
+			genID_table = (struct generationID*)calloc(setting,setting * sizeof(struct generationID));
 			//Table for IGMP multicast cache table. 
 			mltcst_fwd_tbl = calloc(setting,setting * sizeof(struct multicast_table_entry));;
 
@@ -619,6 +623,7 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 	{
 		//Add genID to table.
 		rte_memcpy(genID_table[genIDcounter].ID,generationID,GENID_LEN);
+		
 		//Create decoder queue for newly received generationID	
 		char ring_name[GENID_LEN];
 		sprintf(ring_name,"%s",genID_table[genIDcounter].ID);
@@ -626,7 +631,6 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 
 		if(new_ring!=NULL) //If ring created sucessfully.
 		{
-			printf("genIDcounter %d\n",genIDcounter);
 			printf("GEN TABLE UPDATED:\n");
 			for(uint i=0;i<=genIDcounter;i++)
 			{
@@ -998,6 +1002,16 @@ l2fwd_main_loop(void)
 							//Get genID from encoded packet.
 							char genID[GENID_LEN];
 							rte_memcpy(genID,&data[14],GENID_LEN);
+
+							//Check if GENID is valid
+							for(uint genchar=0;genchar<GENID_LEN;genchar++)
+							{
+								if(genID[genchar]==0) //Drop packet.
+								{
+									printf("Invalid Encoded Packet.\n");
+									break;
+								}
+							}
 
 							//Check if genID is in genTable
 							struct rte_ring* decode_ring_ptr = genID_in_genTable(genID);
