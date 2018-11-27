@@ -390,13 +390,13 @@ net_encode(kodoc_factory_t *encoder_factory)
 static void
 net_decode(kodoc_factory_t *decoder_factory)
 {
-	//TEMP DUMP ALL RINGS
-	rte_ring_list_dump(stdout);
 	//Loop through each decoding ring and check if the ring has atleast one object. 
 	for(uint i=0;i<genIDcounter;i++)
 	{
-		struct rte_ring* decoding_ring = rte_ring_lookup((genID_table+i)->ID);
-		printf("RINGALING: %s\n", (genID_table+i)->ID);
+		char ring_id[GENID_LEN+1];
+		rte_memcpy(ring_id,(genID_table+i)->ID,sizeof((genID_table+i)->ID));
+		struct rte_ring* decoding_ring = rte_ring_lookup(ring_id);
+
 		if(decoding_ring!=NULL)
 		{
 			printf("In Ring %s Count:%d\n",decoding_ring->name,rte_ring_count(decoding_ring));
@@ -514,7 +514,9 @@ net_decode(kodoc_factory_t *decoder_factory)
 					printf("GENID Deleted: GEN TABLE UPDATED:\n");
 					for(uint genIndex=0;genIndex<=genIDcounter;genIndex++)
 					{
-						printf("%s:", genID_table[genIndex].ID);
+						char ring_name[GENID_LEN+1];
+						rte_memcpy(ring_name,(genID_table+genIndex)->ID,GENID_LEN);
+						printf("%s:", ring_name);
 						for(uint j = 0;j<GENID_LEN;j++)
 						{
 							printf("%02X ",genID_table[genIndex].ID[j]);
@@ -613,10 +615,12 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 	int in_table = 0;
 	for(uint i=0;i<genIDcounter;i++)
 	{
-		if(memcmp(generationID,genID_table[i].ID,GENID_LEN) == 0)
+		char ring_name[GENID_LEN+1];
+		rte_memcpy(ring_name,(genID_table+i)->ID,GENID_LEN);
+		if(memcmp(generationID,ring_name,GENID_LEN) == 0)
 		{
 			in_table = 1;
-			return rte_ring_lookup(genID_table[i].ID);
+			return rte_ring_lookup(ring_name);
 		}
 	}
 	if(in_table == 0) //GEN_ID not in table, so make new ring for decoded packets.
@@ -625,7 +629,7 @@ genID_in_genTable(char *generationID) //Need to add a flushing policy
 		rte_memcpy(genID_table[genIDcounter].ID,generationID,GENID_LEN);
 		
 		//Create decoder queue for newly received generationID	
-		char ring_name[GENID_LEN];
+		char ring_name[GENID_LEN+1];
 		sprintf(ring_name,"%s",genID_table[genIDcounter].ID);
 		struct rte_ring *new_ring = rte_ring_create((const char *)ring_name,MAX_SYMBOLS,SOCKET_ID_ANY,0);
 
@@ -675,7 +679,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 	{
 		//IGMP Snooping based on the guidelines of RFC 4541. Modified for testing purposes. Not to full spec.. Local LAN only. No routing support.
 		//Check if IGMP multicast or multicast data traffic.
-		if(data[38] == 0x22) //IGMP Forwarding (Control) L3.
+		if(data[38] == 0x22 && data[5] == 0x16) //IGMP Forwarding (Control) L3.
 		{
 			//Check if INLCUDE or EXCLUDE
 			if(data[46]== 0x03) //To INCLUDE 0 sources. SO do no receive traffic.
@@ -961,11 +965,19 @@ l2fwd_main_loop(void)
 				//Get recieved packet
 				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
 
+				//TEMP print rx_data.
+				for(int kk=0;kk<64;kk+=8)
+				{
+					printf("%x : %x : %x : %x : %x : %x : %x : %x\n",data[kk],data[kk+1],data[kk+2],data[kk+3],data[kk+4],data[kk+5],data[kk+6],data[kk+7]);
+				}
+
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));
 
 				//Get dst_addr status.
 				struct dst_addr_status status = dst_mac_status(m, portid); 
+
+				printf("status:%d\n",status.status);
 
 				if(likely(network_coding == 1) && status.status != 0) //If status is 0, then default to normal forwarding. 
 				{
@@ -1029,7 +1041,7 @@ l2fwd_main_loop(void)
 						}
 						else //Go to nocode(4).
 						{
-							printf("Nocode\n");
+							printf("Nocode 4\n");
 							l2fwd_learning_forward(m, &status);
 						}
 					}
