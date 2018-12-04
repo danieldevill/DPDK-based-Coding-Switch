@@ -373,6 +373,10 @@ net_encode(kodoc_factory_t *encoder_factory)
 					  	rte_pktmbuf_free(rte_mbuf_payload);
 					  	rte_pktmbuf_free(encoded_mbuf);
 					  	//rte_pktmbuf_free();
+
+					  	//Temp print encoded packet
+						rte_pktmbuf_dump(stdout,encoded_mbuf,100);
+
 					}
 
 					rte_pktmbuf_free(rte_mbuf_data_in);
@@ -490,7 +494,7 @@ net_decode(kodoc_factory_t *decoder_factory)
 							(pkt_ptr[0] | ((pkt_ptr[1]) << 8)) //Ether_type from decoded packet.
 						};	
 						decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
-						rte_memcpy(decoded_data+ETHER_HDR_LEN-ETHER_TYPE_LEN,pkt_ptr,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
+						decoded_data = rte_memcpy(decoded_data+ETHER_HDR_LEN-ETHER_TYPE_LEN,pkt_ptr,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
 						
 						struct dst_addr_status status = dst_mac_status(decoded_mbuf, 0);
 					  	l2fwd_learning_forward(decoded_mbuf, &status);
@@ -962,14 +966,11 @@ l2fwd_main_loop(void)
 				m = pkts_burst[j];
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 
-				//Get recieved packet
-				const unsigned char* data = rte_pktmbuf_mtod(m, void *); //Convert data to char.
+				//TEMP PRINT the the m buffer.
+				rte_pktmbuf_dump(stdout,m,100);
 
-				//TEMP print rx_data.
-				for(int kk=0;kk<64;kk+=8)
-				{
-					printf("%x : %x : %x : %x : %x : %x : %x : %x\n",data[kk],data[kk+1],data[kk+2],data[kk+3],data[kk+4],data[kk+5],data[kk+6],data[kk+7]);
-				}
+				//Get recieved packet
+				const unsigned char* data = rte_pktmbuf_mtod(m, void *); 
 
 				//Get ether type
 				uint16_t ether_type = (data[13] | (data[12] << 8));

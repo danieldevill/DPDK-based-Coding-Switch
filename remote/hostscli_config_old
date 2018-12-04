@@ -1,0 +1,120 @@
+[global_config]
+  suppress_multiple_term_dialog = True
+[keybindings]
+  hide_window = None
+[layouts]
+  [[default]]
+    [[[child0]]]
+      fullscreen = False
+      last_active_term = 87f931c8-72ed-4a3b-a947-e7bcd165d966
+      last_active_window = True
+      maximised = False
+      order = 0
+      parent = ""
+      position = 6:6
+      size = 947, 1040
+      title = daniel@daniel-t460s:~
+      type = Window
+    [[[child1]]]
+      order = 0
+      parent = child0
+      position = 518
+      ratio = 0.500483091787
+      type = HPaned
+    [[[child10]]]
+      order = 0
+      parent = child9
+      position = 235
+      ratio = 0.503211991435
+      type = VPaned
+    [[[child13]]]
+      order = 1
+      parent = child9
+      position = 236
+      ratio = 0.503198294243
+      type = VPaned
+    [[[child2]]]
+      order = 0
+      parent = child1
+      position = 472
+      ratio = 0.501061571125
+      type = VPaned
+    [[[child3]]]
+      order = 0
+      parent = child2
+      position = 235
+      ratio = 0.503211991435
+      type = VPaned
+    [[[child6]]]
+      order = 1
+      parent = child2
+      position = 236
+      ratio = 0.503198294243
+      type = VPaned
+    [[[child9]]]
+      order = 1
+      parent = child1
+      position = 472
+      ratio = 0.501061571125
+      type = VPaned
+    [[[terminal11]]]
+      order = 0
+      parent = child10
+      profile = default
+      type = Terminal
+      uuid = 55c502a7-c33f-4174-b10a-0f7ba1bd0304
+    [[[terminal12]]]
+      order = 1
+      parent = child10
+      profile = default
+      type = Terminal
+      uuid = 87f931c8-72ed-4a3b-a947-e7bcd165d966
+    [[[terminal14]]]
+      order = 0
+      parent = child13
+      profile = default
+      type = Terminal
+      uuid = 2128c310-3398-4fda-b6a8-8d5c76788cd7
+    [[[terminal15]]]
+      order = 1
+      parent = child13
+      profile = default
+      type = Terminal
+      uuid = d28beb52-fe95-4ee9-a2f3-d9d4b19a8b59
+    [[[terminal4]]]
+      order = 0
+      parent = child3
+      profile = default
+      type = Terminal
+      uuid = 8e176593-53da-44ba-a615-67da380412fe
+    [[[terminal5]]]
+      order = 1
+      parent = child3
+      profile = default
+      type = Terminal
+      uuid = e7fd71c7-bb1f-4c59-8d03-63053e7e31d0
+    [[[terminal7]]]
+      order = 0
+      parent = child6
+      profile = default
+      type = Terminal
+      uuid = b32c3a36-7e02-41e3-9dfa-96968f962bd5
+    [[[terminal8]]]
+      order = 1
+      parent = child6
+      profile = default
+      type = Terminal
+      uuid = ad50a538-9f7a-4bf4-95d4-82fd3f582f1f
+[plugins]
+[profiles]
+  [[default]]
+    background_darkness = 0.7
+    background_type = transparent
+    cursor_color = "#aaaaaa"
+    cursor_shape = underline
+    font = Noto Sans 12
+    foreground_color = "#ce5c00"
+    palette = "#000000:#cc0000:#4e9a06:#c4a000:#3465a4:#75507b:#06989a:#d3d7cf:#555753:#ef2929:#8ae234:#fce94f:#729fcf:#ad7fa8:#34e2e2:#eeeeec"
+    scroll_on_output = True
+    scrollback_infinite = True
+    scrollback_lines = 504

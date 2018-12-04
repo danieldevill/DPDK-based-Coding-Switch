@@ -3,11 +3,11 @@
 #DPDK-based coding switch workflow setup script.
 
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifup' &&
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifup' &&
 
 echo "Interfaces up!" &&
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_EN.qcow2 \
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_EN.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
@@ -26,7 +26,7 @@ sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-s
 
 sleep 5
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_2.qcow2 \
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_2.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
@@ -51,6 +51,6 @@ sleep 5
 
 #sudo terminator -g swcli_config ;
 
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S pkill -f qemu-system-x86_64' ;
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S pkill -f qemu-system-x86_64' ;
 	
-sudo sshpass -p 'mininet' ssh ubuntu@10.10.11.118 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifdown'
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S /home/ubuntu/DPDK-based-Coding-Switch/ifdown'
