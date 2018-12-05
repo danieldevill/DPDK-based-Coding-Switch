@@ -804,6 +804,7 @@ dst_addr_status dst_mac_status(struct rte_mbuf *m, unsigned srcport)
 						{
 							status.status = 4;
 							status.table_index = i;
+							break;
 						}
 					}
 				}
