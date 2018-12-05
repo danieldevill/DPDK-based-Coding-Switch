@@ -169,7 +169,7 @@ static int NB_MBUF;
 static int MAX_PKT_BURST;
 
 #define BURST_TX_DRAIN_US 100 /* TX drain every ~100us */
-#define MEMPOOL_CACHE_SIZE 256
+#define MEMPOOL_CACHE_SIZE 512
 
 /*
  * Configurable number of RX/TX ring descriptors
@@ -375,8 +375,8 @@ net_encode(kodoc_factory_t *encoder_factory)
 					  	//rte_pktmbuf_free();
 
 					  	//Temp print encoded packet
-						rte_pktmbuf_dump(stdout,encoded_mbuf,100);
-
+					  	//rte_mempool_dump(stdout,l2fwd_pktmbuf_pool);
+						//rte_pktmbuf_dump(stdout,encoded_mbuf,100);
 					}
 
 					rte_pktmbuf_free(rte_mbuf_data_in);
@@ -486,13 +486,14 @@ net_decode(kodoc_factory_t *decoder_factory)
 						rte_memcpy(s_addr.addr_bytes,data+ETHER_ADDR_LEN,ETHER_ADDR_LEN);
 
 						//Create mbuf for decoded reply
-					  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(l2fwd_pktmbuf_pool);
+					  	struct rte_mbuf* decoded_mbuf = rte_pktmbuf_alloc(codingmbuf_pool);
 						char* decoded_data = rte_pktmbuf_append(decoded_mbuf,rte_pktmbuf_data_len(m)-GENID_LEN-10);
 						struct ether_hdr eth_hdr = {
 							d_addr, //Same as incoming source addr.
 							s_addr, //Port mac address
 							(pkt_ptr[0] | ((pkt_ptr[1]) << 8)) //Ether_type from decoded packet.
 						};	
+						
 						decoded_data = rte_memcpy(decoded_data,&eth_hdr,ETHER_HDR_LEN);
 						decoded_data = rte_memcpy(decoded_data+ETHER_HDR_LEN-ETHER_TYPE_LEN,pkt_ptr,MAX_SYMBOL_SIZE); //Original ether header must be overwritten else it is writen twice. Allows using std ether_hdr struct.
 						
@@ -967,7 +968,7 @@ l2fwd_main_loop(void)
 				rte_prefetch0(rte_pktmbuf_mtod(m, void *));
 
 				//TEMP PRINT the the m buffer.
-				rte_pktmbuf_dump(stdout,m,100);
+				//rte_pktmbuf_dump(stdout,m,100);
 
 				//Get recieved packet
 				const unsigned char* data = rte_pktmbuf_mtod(m, void *); 
@@ -977,8 +978,6 @@ l2fwd_main_loop(void)
 
 				//Get dst_addr status.
 				struct dst_addr_status status = dst_mac_status(m, portid); 
-
-				printf("status:%d\n",status.status);
 
 				if(likely(network_coding == 1) && status.status != 0) //If status is 0, then default to normal forwarding. 
 				{
@@ -1042,7 +1041,7 @@ l2fwd_main_loop(void)
 						}
 						else //Go to nocode(4).
 						{
-							printf("Nocode 4\n");
+							printf("Nocode\n");
 							l2fwd_learning_forward(m, &status);
 						}
 					}
