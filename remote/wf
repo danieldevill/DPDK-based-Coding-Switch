@@ -7,7 +7,7 @@ sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S /home/ubu
 
 echo "Interfaces up!" &&
 
-sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_EN.qcow2 \
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/vm-images/DENCS_EN.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
@@ -26,7 +26,7 @@ sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-syst
 
 sleep 5
 
-sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/DPDK-based-Coding-Switch/vm-images/DENCS_2.qcow2 \
+sshpass -v -p 'mininet' ssh ubuntu@10.10.11.35 'echo mininet | sudo -S qemu-system-x86_64 /home/ubuntu/vm-images/DENCS_2.qcow2 \
 -accel kvm -display none \
 -m size=1G \
 -cpu host,+ssse3,+sse4.1,+sse4.2,+x2apic \
